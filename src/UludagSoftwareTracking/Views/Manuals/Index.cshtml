@@ -1,0 +1,42 @@
+@model IReadOnlyList<SoftwareManual>
+@{
+    ViewData["Title"] = "Kılavuz Yönetimi";
+}
+
+<section class="form-alani">
+    <h1>Kılavuzlar</h1>
+    <a class="buton-link" asp-action="Yukle">Yeni Kılavuz Yükle</a>
+</section>
+
+@if (Model.Any())
+{
+    <table class="tablo">
+        <thead>
+            <tr>
+                <th>Başlık</th>
+                <th>Yazılım</th>
+                <th>Tür</th>
+                <th>Versiyon</th>
+                <th>Yüklenme</th>
+                <th>Hazırlayan</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var kilavuz in Model)
+        {
+            <tr>
+                <td>@kilavuz.Title</td>
+                <td>@kilavuz.Software?.Name</td>
+                <td>@kilavuz.ManualType</td>
+                <td>@kilavuz.Version</td>
+                <td>@kilavuz.UploadedOn.ToString("dd.MM.yyyy")</td>
+                <td>@kilavuz.UploadedByUser?.FullName</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>Henüz kılavuz yüklenmedi.</p>
+}

@@ -1,0 +1,51 @@
+@model SoftwareDetailViewModel
+@{
+    ViewData["Title"] = Model.Yazilim?.Name ?? "Yazılım Detayı";
+}
+
+<section class="form-alani">
+    <h1>@Model.Yazilim?.Name</h1>
+    <p>@Model.Yazilim?.Description</p>
+    <p><strong>Birim:</strong> @Model.Yazilim?.Department?.Name</p>
+    <p><strong>Teknoloji:</strong> @Model.Yazilim?.TechnologyStack</p>
+    <p><strong>Kategori:</strong> @Model.Yazilim?.Category</p>
+    <p><strong>Destek İletişimi:</strong> @Model.Yazilim?.SupportContact</p>
+    @if (!string.IsNullOrWhiteSpace(Model.Yazilim?.WebsiteUrl))
+    {
+        <p><a class="rozet" href="@Model.Yazilim?.WebsiteUrl" target="_blank" rel="noopener">Resmî Site</a></p>
+    }
+</section>
+
+<section>
+    <h2>Kılavuzlar</h2>
+    @if (Model.Kilavuzlar.Any())
+    {
+        <table class="tablo">
+            <thead>
+                <tr>
+                    <th>Başlık</th>
+                    <th>Tür</th>
+                    <th>Versiyon</th>
+                    <th>Yüklenme Tarihi</th>
+                    <th>Hazırlayan</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var kilavuz in Model.Kilavuzlar)
+            {
+                <tr>
+                    <td>@kilavuz.Title</td>
+                    <td>@kilavuz.ManualType</td>
+                    <td>@kilavuz.Version</td>
+                    <td>@kilavuz.UploadedOn.ToString("dd.MM.yyyy")</td>
+                    <td>@kilavuz.UploadedByUser?.FullName</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p>Bu yazılım için henüz kılavuz yüklenmedi.</p>
+    }
+</section>

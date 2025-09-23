@@ -1,0 +1,50 @@
+@model SoftwareCatalogViewModel
+@{
+    ViewData["Title"] = "Yazılım Kataloğu";
+}
+
+<section class="form-alani">
+    <h1>Yazılım Kataloğu</h1>
+    <form asp-action="Index" method="get">
+        <div>
+            <label asp-for="AramaMetni"></label>
+            <input asp-for="AramaMetni" placeholder="Yazılım adı" />
+        </div>
+        <div>
+            <label asp-for="BirimId"></label>
+            <select asp-for="BirimId" asp-items="@(new SelectList(Model.Birimler, "Id", "Name", Model.BirimId))">
+                <option value="">Tüm Birimler</option>
+            </select>
+        </div>
+        <div>
+            <label asp-for="Teknoloji"></label>
+            <select asp-for="Teknoloji">
+                <option value="">Tüm Teknolojiler</option>
+                @foreach (var teknoloji in Model.Teknolojiler)
+                {
+                    <option value="@teknoloji" selected="@(Model.Teknoloji == teknoloji ? "selected" : null)">@teknoloji</option>
+                }
+            </select>
+        </div>
+        <button type="submit">Filtrele</button>
+    </form>
+</section>
+
+<section class="kart-listesi">
+    @foreach (var yazilim in Model.Yazilimlar)
+    {
+        <div class="kart">
+            <div class="kart-baslik">@yazilim.Name</div>
+            <div class="kart-icerik">@yazilim.Description</div>
+            <div class="kart-icerik">Teknoloji: @yazilim.TechnologyStack</div>
+            <div class="kart-icerik">Kategori: @yazilim.Category</div>
+            <div class="kart-icerik">Sorumlu Birim: @yazilim.Department?.Name</div>
+            <a class="rozet" asp-action="Detay" asp-route-id="@yazilim.Id">Detayları Gör</a>
+        </div>
+    }
+
+    @if (!Model.Yazilimlar.Any())
+    {
+        <p>Listelenecek yazılım bulunamadı.</p>
+    }
+</section>

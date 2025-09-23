@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - ULUDAĞ Yazılım Takip Sistemi</title>
+    <link rel="stylesheet" href="~/css/site.css" />
+</head>
+<body>
+    <header class="ust-menu">
+        <div class="logo">ULUDAĞ Yazılım Takip Sistemi</div>
+        <nav>
+            <ul>
+                <li><a asp-controller="Home" asp-action="Index">Ana Sayfa</a></li>
+                <li><a asp-controller="Software" asp-action="Index">Yazılım Kataloğu</a></li>
+                @if (User.Identity?.IsAuthenticated ?? false)
+                {
+                    if (User.IsInRole(RoleConstants.Roles.BirimKullanicisi) || User.IsInRole(RoleConstants.Roles.BirimYetkilisi) || User.IsInRole(RoleConstants.Roles.Admin))
+                    {
+                        <li><a asp-controller="Requests" asp-action="Taleplerim">Taleplerim</a></li>
+                    }
+                    if (User.IsInRole(RoleConstants.Roles.BirimYetkilisi) || User.IsInRole(RoleConstants.Roles.Admin))
+                    {
+                        <li><a asp-controller="Requests" asp-action="OnayBekleyen">Onay Bekleyen Talepler</a></li>
+                    }
+                    if (User.IsInRole(RoleConstants.Roles.BilgiIslemDegerlendirmeEkibi) || User.IsInRole(RoleConstants.Roles.Admin))
+                    {
+                        <li><a asp-controller="Requests" asp-action="DegerlendirmeBekleyen">Değerlendirme Listesi</a></li>
+                    }
+                    if (User.IsInRole(RoleConstants.Roles.YazilimEkibiLideri) || User.IsInRole(RoleConstants.Roles.Yazilimci) || User.IsInRole(RoleConstants.Roles.Admin))
+                    {
+                        <li><a asp-controller="Dashboard" asp-action="Index">Proje Panosu</a></li>
+                    }
+                    if (User.IsInRole(RoleConstants.Roles.BirimKullanicisi) || User.IsInRole(RoleConstants.Roles.BirimYetkilisi) || User.IsInRole(RoleConstants.Roles.YazilimEkibiLideri) || User.IsInRole(RoleConstants.Roles.Yazilimci) || User.IsInRole(RoleConstants.Roles.Admin))
+                    {
+                        <li><a asp-controller="Manuals" asp-action="Index">Kılavuz Yönetimi</a></li>
+                    }
+                    if (User.IsInRole(RoleConstants.Roles.Admin))
+                    {
+                        <li><a asp-controller="Admin" asp-action="Index">Sistem Yönetimi</a></li>
+                    }
+                }
+            </ul>
+        </nav>
+        <div class="kullanici">
+            @if (User.Identity?.IsAuthenticated ?? false)
+            {
+                <span>@User.Identity!.Name</span>
+            }
+            else
+            {
+                <span>Misafir</span>
+            }
+        </div>
+    </header>
+
+    <main class="icerik">
+        @if (TempData.ContainsKey("Success"))
+        {
+            <div class="bilgi-kutu basarili">@TempData["Success"]</div>
+        }
+        @if (TempData.ContainsKey("Warning"))
+        {
+            <div class="bilgi-kutu uyari">@TempData["Warning"]</div>
+        }
+        @RenderBody()
+    </main>
+
+    <footer class="alt-bilgi">
+        <p>&copy; @DateTime.Now.Year Uludağ Üniversitesi Bilgi İşlem Dairesi</p>
+    </footer>
+
+    @RenderSection("Scripts", required: false)
+</body>
+</html>

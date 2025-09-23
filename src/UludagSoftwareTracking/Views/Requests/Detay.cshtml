@@ -1,0 +1,114 @@
+@model RequestDetailViewModel
+@{
+    ViewData["Title"] = Model.Talep?.Title ?? "Talep Detayı";
+}
+
+<section class="form-alani">
+    <h1>@Model.Talep?.Title</h1>
+    <p>@Model.Talep?.Description</p>
+    <p><strong>Birim:</strong> @Model.Talep?.Department?.Name</p>
+    <p><strong>Talep Sahibi:</strong> @Model.Talep?.RequestedByUser?.FullName</p>
+    <p><strong>Durum:</strong> @Model.Talep?.Status</p>
+    <p><strong>Öncelik:</strong> @Model.Talep?.Priority</p>
+    <p><strong>Oluşturulma:</strong> @Model.Talep?.CreatedAt.ToString("dd.MM.yyyy")</p>
+    @if (Model.Talep?.DesiredCompletionDate is not null)
+    {
+        <p><strong>Hedef Tarih:</strong> @Model.Talep.DesiredCompletionDate?.ToString("dd.MM.yyyy")</p>
+    }
+    @if (!string.IsNullOrWhiteSpace(Model.Talep?.RejectionReason))
+    {
+        <p><strong>Red Nedeni:</strong> @Model.Talep?.RejectionReason</p>
+    }
+</section>
+
+@if (Model.Onaylar.Any())
+{
+    <section>
+        <h2>Onay Geçmişi</h2>
+        <table class="tablo">
+            <thead>
+                <tr>
+                    <th>Durum</th>
+                    <th>Yetkili</th>
+                    <th>Tarih</th>
+                    <th>Not</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var onay in Model.Onaylar)
+            {
+                <tr>
+                    <td>@onay.Status</td>
+                    <td>@onay.ApprovedByUser?.FullName</td>
+                    <td>@onay.DecidedAt?.ToString("dd.MM.yyyy")</td>
+                    <td>@onay.Notes</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </section>
+}
+
+@if (Model.Degerlendirmeler.Any())
+{
+    <section>
+        <h2>Teknik Değerlendirme</h2>
+        <table class="tablo">
+            <thead>
+                <tr>
+                    <th>Sonuç</th>
+                    <th>Uzman</th>
+                    <th>Tarih</th>
+                    <th>Açıklama</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var degerlendirme in Model.Degerlendirmeler)
+            {
+                <tr>
+                    <td>@degerlendirme.Result</td>
+                    <td>@degerlendirme.AssessedByUser?.FullName</td>
+                    <td>@degerlendirme.AssessedOn?.ToString("dd.MM.yyyy")</td>
+                    <td>@degerlendirme.Notes</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </section>
+}
+
+@if (Model.Proje is not null)
+{
+    <section class="form-alani">
+        <h2>İlgili Proje</h2>
+        <p><strong>Proje Adı:</strong> @Model.Proje.Name</p>
+        <p><strong>Durum:</strong> @Model.Proje.Status</p>
+        <p><strong>Proje Lideri:</strong> @Model.Proje.LeadUser?.FullName</p>
+    </section>
+}
+
+@if (User.IsInRole(RoleConstants.Roles.BirimYetkilisi) && Model.Talep?.Status == RequestStatus.OnayBekleniyor)
+{
+    <section class="form-alani">
+        <h2>Onay İşlemleri</h2>
+        <form asp-action="Onayla" method="post">
+            <input type="hidden" name="id" value="@Model.Talep!.Id" />
+            <label for="aciklama">Not</label>
+            <textarea name="aciklama" rows="3"></textarea>
+            <button type="submit">Onayla</button>
+        </form>
+        <form asp-action="Reddet" method="post">
+            <input type="hidden" name="id" value="@Model.Talep!.Id" />
+            <label for="aciklama">Red Nedeni</label>
+            <textarea name="aciklama" rows="3"></textarea>
+            <button type="submit" class="ikincil">Reddet</button>
+        </form>
+    </section>
+}
+
+@if (User.IsInRole(RoleConstants.Roles.BilgiIslemDegerlendirmeEkibi) && Model.Talep?.Status == RequestStatus.Degerlendirmede)
+{
+    <section class="form-alani">
+        <a class="buton-link" asp-action="Degerlendir" asp-route-id="@Model.Talep!.Id">Teknik Değerlendirme Yap</a>
+    </section>
+}

@@ -1,0 +1,194 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    background-color: #f6f8fb;
+    color: #1d1d1f;
+}
+
+.ust-menu {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    background-color: #003366;
+    color: #fff;
+}
+
+.ust-menu .logo {
+    font-weight: 700;
+    font-size: 1.2rem;
+    letter-spacing: 0.5px;
+}
+
+.ust-menu nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    gap: 1rem;
+}
+
+.ust-menu nav a {
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.ust-menu nav a:hover {
+    text-decoration: underline;
+}
+
+.kullanici {
+    font-size: 0.9rem;
+}
+
+.icerik {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.alt-bilgi {
+    text-align: center;
+    padding: 1rem 0;
+    background-color: #003366;
+    color: #fff;
+    margin-top: 2rem;
+}
+
+.kartlar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.kart {
+    background-color: #fff;
+    padding: 1.25rem;
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+.kart.baslik {
+    font-size: 0.9rem;
+    color: #5f6368;
+    margin-bottom: 0.5rem;
+}
+
+.kart.deger {
+    font-size: 1.75rem;
+    font-weight: 700;
+}
+
+.tablo {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.tablo thead {
+    background-color: #edf2fb;
+}
+
+.tablo th, .tablo td {
+    padding: 0.85rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid #e1e8f5;
+}
+
+.form-alani {
+    background-color: #fff;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+}
+
+.form-alani label {
+    display: block;
+    margin-bottom: 0.4rem;
+    font-weight: 600;
+}
+
+.form-alani input[type="text"],
+.form-alani input[type="date"],
+.form-alani select,
+.form-alani textarea {
+    width: 100%;
+    padding: 0.6rem;
+    border-radius: 8px;
+    border: 1px solid #cfd6e6;
+    margin-bottom: 1rem;
+    font-size: 1rem;
+}
+
+.form-alani button {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    background-color: #0050b3;
+    color: #fff;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.form-alani button.ikincil {
+    background-color: #6c757d;
+}
+
+.buton-link {
+    display: inline-block;
+    padding: 0.65rem 1.3rem;
+    border-radius: 8px;
+    background-color: #0050b3;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.buton-link.ikincil {
+    background-color: #6c757d;
+}
+
+.bilgi-kutu {
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.bilgi-kutu.basarili {
+    background-color: #e6f4ea;
+    color: #137333;
+}
+
+.bilgi-kutu.uyari {
+    background-color: #fef7e0;
+    color: #b06000;
+}
+
+.rozet {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background-color: #edf2fb;
+    color: #003366;
+}
+
+.kart-listesi {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+}
+
+.kart-listesi .kart-baslik {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.kart-listesi .kart-icerik {
+    font-size: 0.95rem;
+    color: #4f4f4f;
+}

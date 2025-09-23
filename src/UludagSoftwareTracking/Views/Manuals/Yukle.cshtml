@@ -1,0 +1,43 @@
+@model ManualUploadViewModel
+@{
+    ViewData["Title"] = "Kılavuz Yükle";
+}
+
+<section class="form-alani">
+    <h1>Yeni Kılavuz</h1>
+    <form asp-action="Yukle" method="post">
+        <div asp-validation-summary="ModelOnly" class="bilgi-kutu uyari"></div>
+        <div>
+            <label asp-for="SoftwareId"></label>
+            <select asp-for="SoftwareId" asp-items="@(new SelectList(Model.Yazilimlar, "Id", "Name"))"></select>
+            <span asp-validation-for="SoftwareId" class="bilgi-kutu uyari"></span>
+        </div>
+        <div>
+            <label asp-for="Title"></label>
+            <input asp-for="Title" />
+            <span asp-validation-for="Title" class="bilgi-kutu uyari"></span>
+        </div>
+        <div>
+            <label asp-for="ManualType"></label>
+            <select asp-for="ManualType" asp-items="Html.GetEnumSelectList<ManualType>()"></select>
+        </div>
+        <div>
+            <label asp-for="FilePath"></label>
+            <input asp-for="FilePath" />
+        </div>
+        <div>
+            <label asp-for="Version"></label>
+            <input asp-for="Version" />
+        </div>
+        <div>
+            <label asp-for="ChangeLog"></label>
+            <textarea asp-for="ChangeLog" rows="3"></textarea>
+        </div>
+        <button type="submit">Kaydet</button>
+        <a class="buton-link ikincil" asp-action="Index">İptal</a>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

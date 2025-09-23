@@ -1,0 +1,42 @@
+@model RequestAssessmentInputModel
+@{
+    ViewData["Title"] = "Teknik Değerlendirme";
+    var talep = ViewData["Talep"] as SoftwareRequest;
+}
+
+<section class="form-alani">
+    <h1>Teknik Değerlendirme</h1>
+    @if (talep is not null)
+    {
+        <p><strong>Talep:</strong> @talep.Title</p>
+        <p>@talep.Description</p>
+    }
+
+    <form asp-action="Degerlendir" method="post">
+        <input type="hidden" asp-for="RequestId" />
+        <div>
+            <label asp-for="Result"></label>
+            <select asp-for="Result" asp-items="Html.GetEnumSelectList<AssessmentResult>()"></select>
+        </div>
+        <div>
+            <label asp-for="ExistingSoftwareId"></label>
+            <select asp-for="ExistingSoftwareId">
+                <option value="">Var olan yazılım seçiniz</option>
+                @foreach (var yazilim in Model.Yazilimlar)
+                {
+                    <option value="@yazilim.Id">@yazilim.Name</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label asp-for="Notes"></label>
+            <textarea asp-for="Notes" rows="4"></textarea>
+        </div>
+        <button type="submit">Değerlendirmeyi Kaydet</button>
+        <a class="buton-link ikincil" asp-action="Detay" asp-route-id="@Model.RequestId">İptal</a>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
