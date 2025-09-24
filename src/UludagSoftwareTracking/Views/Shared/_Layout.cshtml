@@ -23,15 +23,26 @@
                     {
                         <li><a asp-controller="Requests" asp-action="OnayBekleyen">Onay Bekleyen Talepler</a></li>
                     }
-                    if (User.IsInRole(RoleConstants.Roles.BilgiIslemDegerlendirmeEkibi) || User.IsInRole(RoleConstants.Roles.Admin))
+                    if (User.IsInRole(RoleConstants.Roles.DegerlendiriciBir) ||
+                        User.IsInRole(RoleConstants.Roles.DegerlendiriciIki) ||
+                        User.IsInRole(RoleConstants.Roles.DegerlendiriciUc) ||
+                        User.IsInRole(RoleConstants.Roles.Admin))
                     {
                         <li><a asp-controller="Requests" asp-action="DegerlendirmeBekleyen">Değerlendirme Listesi</a></li>
                     }
-                    if (User.IsInRole(RoleConstants.Roles.YazilimEkibiLideri) || User.IsInRole(RoleConstants.Roles.Yazilimci) || User.IsInRole(RoleConstants.Roles.Admin))
+                    if (User.IsInRole(RoleConstants.Roles.DegerlendirmeBaskani) || User.IsInRole(RoleConstants.Roles.Admin))
+                    {
+                        <li><a asp-controller="Requests" asp-action="BaskanOnayBekleyen">Başkan Onayları</a></li>
+                    }
+                    if (User.IsInRole(RoleConstants.Roles.Yazilimci) || User.IsInRole(RoleConstants.Roles.Admin))
                     {
                         <li><a asp-controller="Dashboard" asp-action="Index">Proje Panosu</a></li>
                     }
-                    if (User.IsInRole(RoleConstants.Roles.BirimKullanicisi) || User.IsInRole(RoleConstants.Roles.BirimYetkilisi) || User.IsInRole(RoleConstants.Roles.YazilimEkibiLideri) || User.IsInRole(RoleConstants.Roles.Yazilimci) || User.IsInRole(RoleConstants.Roles.Admin))
+                    if (User.IsInRole(RoleConstants.Roles.BirimKullanicisi) ||
+                        User.IsInRole(RoleConstants.Roles.BirimYetkilisi) ||
+                        User.IsInRole(RoleConstants.Roles.DegerlendirmeBaskani) ||
+                        User.IsInRole(RoleConstants.Roles.Yazilimci) ||
+                        User.IsInRole(RoleConstants.Roles.Admin))
                     {
                         <li><a asp-controller="Manuals" asp-action="Index">Kılavuz Yönetimi</a></li>
                     }

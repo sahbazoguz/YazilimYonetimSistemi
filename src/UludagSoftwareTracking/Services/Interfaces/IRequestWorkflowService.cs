@@ -14,7 +14,9 @@ public interface IRequestWorkflowService
 
     Task<RequestOverviewViewModel> GetPendingApprovalsAsync(int departmentId, CancellationToken cancellationToken = default);
 
-    Task<RequestOverviewViewModel> GetPendingAssessmentsAsync(CancellationToken cancellationToken = default);
+    Task<RequestOverviewViewModel> GetPendingAssessmentsAsync(AssessmentStage stage, CancellationToken cancellationToken = default);
+
+    Task<RequestOverviewViewModel> GetPendingBaskanApprovalsAsync(CancellationToken cancellationToken = default);
 
     Task<SoftwareRequest?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
 
@@ -26,5 +28,15 @@ public interface IRequestWorkflowService
 
     Task RejectAsync(int requestId, int approverUserId, string? notes, CancellationToken cancellationToken = default);
 
-    Task AssessAsync(RequestAssessmentInputModel model, int assessorUserId, CancellationToken cancellationToken = default);
+    Task AssessAsync(RequestAssessmentInputModel model, int assessorUserId, UserRole assessorRole, CancellationToken cancellationToken = default);
+
+    Task UpdateAlgorithmAsync(int requestId, int userId, string algorithmNotes, CancellationToken cancellationToken = default);
+
+    Task UpdateGuidesAsync(int requestId, int userId, string? technicalGuidePath, string? userGuidePath, CancellationToken cancellationToken = default);
+
+    Task MarkDevelopmentCompletedAsync(int requestId, int userId, CancellationToken cancellationToken = default);
+
+    Task ConfirmTestingAsync(int requestId, int userId, CancellationToken cancellationToken = default);
+
+    Task AddDiscussionMessageAsync(int requestId, int userId, string message, CancellationToken cancellationToken = default);
 }

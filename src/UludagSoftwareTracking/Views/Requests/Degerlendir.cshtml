@@ -2,6 +2,7 @@
 @{
     ViewData["Title"] = "Teknik Değerlendirme";
     var talep = ViewData["Talep"] as SoftwareRequest;
+    var asama = ViewData["Asama"] as string ?? "Teknik Değerlendirme";
 }
 
 <section class="form-alani">
@@ -14,6 +15,8 @@
 
     <form asp-action="Degerlendir" method="post">
         <input type="hidden" asp-for="RequestId" />
+        <input type="hidden" asp-for="Stage" />
+        <p><strong>Aşama:</strong> @asama</p>
         <div>
             <label asp-for="Result"></label>
             <select asp-for="Result" asp-items="Html.GetEnumSelectList<AssessmentResult>()"></select>

@@ -77,7 +77,7 @@ public class ManualsController : Controller
     {
         return User.IsInRole(RoleConstants.Roles.BirimKullanicisi) ||
                User.IsInRole(RoleConstants.Roles.BirimYetkilisi) ||
-               User.IsInRole(RoleConstants.Roles.YazilimEkibiLideri) ||
+               User.IsInRole(RoleConstants.Roles.DegerlendirmeBaskani) ||
                User.IsInRole(RoleConstants.Roles.Yazilimci) ||
                User.IsInRole(RoleConstants.Roles.Admin);
     }

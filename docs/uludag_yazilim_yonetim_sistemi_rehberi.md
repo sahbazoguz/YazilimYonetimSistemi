@@ -51,15 +51,15 @@ Bu yapı, SOLID prensiplerine uyum ve test edilebilirlik için önerilir. Presen
 
 ### 4.2 Talep Yönetimi (Birim Kullanıcısı ve Üzeri)
 - Talep oluşturma formu (zorunlu alan kontrolleri)
-- Talep durum akışı: `Taslak → Birim Onayı Bekleniyor → Birim Tarafından Onaylandı/Red → BİD İncelemesinde → Yazılım Ekibine Aktarıldı → Geliştirme → Tamamlandı`
+- Talep durum akışı: `Taslak → Birim Onayı Bekleniyor → Birim Onayı/Reddetme → Değerlendirici 1/2/3 İncelemesi → Başkan Onayı Bekliyor → Geliştirme → Tamamlandı → Birim Test Onayı`
 - Talep geçmişi ve günlük kaydı (audit trail)
 - İlgili dosyaların (doküman, ekran görüntüsü) yüklenmesi
 
 ### 4.3 Değerlendirme ve Onay
 - Birim Yetkilisi için departman talepleri listesi ve onay ekranı
-- Bilgi İşlem Değerlendirme Ekibi için teknik uygunluk ve mevcut yazılım kontrolü
-- Yazılım Ekibi Lideri için proje ataması ve geliştirici yönetimi
-- Yazılımcılar için görev listesi, ilerleme girişi ve mesajlaşma modülü
+- Değerlendirici 1/2/3 için teknik uygunluk ve mevcut yazılım kontrolü ekranı
+- Değerlendirme Başkanı için üç değerlendirmenin çıktısını birleştirip karar verme paneli
+- Yazılımcılar için görev listesi, algoritma taslağı, kılavuz yükleme ve mesajlaşma modülü
 
 ### 4.4 Doküman Yönetimi
 - Kullanım kılavuzu versiyonlama (Birim Kullanıcısı sorumluluğunda)
@@ -81,9 +81,11 @@ Bu yapı, SOLID prensiplerine uyum ve test edilebilirlik için önerilir. Presen
 | Personel | LDAP doğrulamalı personel | Misafir yetkileri, talep oluşturamaz |
 | Birim Kullanıcısı | Birim yetkilisinin atadığı kullanıcı | Talep oluşturma, taleplerini izleme, kılavuz yükleme |
 | Birim Yetkilisi | Departman sorumlusu | Departman taleplerini görüntüleme, onaylama/red, kılavuz yönetimi |
-| Bilgi İşlem Değerlendirme Ekibi | IT değerlendirme ekibi | Tüm talepleri görüntüleme, teknik değerlendirme, mevcut yazılım kontrolü |
-| Yazılım Ekibi Lideri | Yazılım geliştirme lideri | Proje yönetimi, geliştirici atama, teknik kılavuz yönetimi |
-| Yazılımcı | Yazılım geliştirme personeli | Atanmış projeleri görüntüleme, görev tamamlama, mesajlaşma |
+| Değerlendirici 1 | Teknik değerlendirme uzmanı 1 | Talepleri değerlendirme, uygunluk notu girme, mevcut yazılım önerisi |
+| Değerlendirici 2 | Teknik değerlendirme uzmanı 2 | Talepleri değerlendirme, uygunluk notu girme, mevcut yazılım önerisi |
+| Değerlendirici 3 | Teknik değerlendirme uzmanı 3 | Talepleri değerlendirme, uygunluk notu girme, mevcut yazılım önerisi |
+| Değerlendirme Başkanı | Teknik kurul başkanı | Tüm değerlendirmeleri görme, final karar verme, yazılımcıya yönlendirme |
+| Yazılımcı | Yazılım geliştirme personeli | Atanmış projeleri yönetme, algoritma taslağı oluşturma, kılavuz yükleme, mesajlaşma |
 | Admin | Sistem yöneticisi | Tüm sistem yönetimi, rol atamaları, ayarlar, raporlar |
 
 Rol tanımları için ASP.NET Core Identity yerine LDAP gruplarından okunan claim'ler + uygulama içi rol tablosu birlikte kullanılabilir. Rol kontrolleri Authorization Policy ile yönetilmelidir.
@@ -122,21 +124,22 @@ Rol tanımları için ASP.NET Core Identity yerine LDAP gruplarından okunan cla
 
 ### 7.2 Birim Onayı
 1. Birim Yetkilisi "Onay Bekleyen Talepler" ekranında talepleri görüntüler.
-2. Onaylıyorsa durumu "BİD İncelemesinde" olur ve Bilgi İşlem ekibine bildirim gider.
+2. Onaylıyorsa durum "Değerlendirmede" olur ve üç teknik değerlendiriciye bildirim gider.
 3. Reddederse "Red" durumu ile kapanır, gerekçe zorunludur.
 
 ### 7.3 Teknik Değerlendirme
-1. Bilgi İşlem Değerlendirme Ekibi talebi inceler.
-2. Sonuçlardan biri seçilir:
+1. Değerlendirici 1, 2 ve 3 talebi sırayla inceleyerek görüş ve sonuçlarını kaydeder.
+2. Her değerlendirme sonucunda aşağıdakilerden biri seçilir:
    - Mevcut Yazılım Yönlendirmesi: Talep kapatılır, yönlendirme notu eklenir.
-   - Yeni Geliştirme: Talep "Yazılım Ekibine Aktarıldı" durumuna geçer.
-   - Red: Talep sonlandırılır.
+   - Yeni Geliştirme: Talep başkan onayına hazırlık aşamasına geçer.
+   - Uygun Değil: Talep gerekçesiyle sonlandırılır.
+3. Üç değerlendirici de raporlarını tamamladığında durum "Başkan Onayı Bekliyor" olur ve değerlendirme başkanına bildirim gider.
 
 ### 7.4 Geliştirme Süreci
-1. Yazılım Ekibi Lideri talebi proje/iş emrine dönüştürür.
-2. Geliştiricilere görevler atar, teknik kılavuzlar yüklenir.
-3. Yazılımcılar görev durumlarını günceller, mesajlaşma üzerinden iletişim kurar.
-4. Tamamlanan işler "Test/Canlı" sürecine aktarılır ve talep kapatılır.
+1. Başkan onayından sonra talep için proje kaydı oluşturulur ve geliştirici görevlendirilir.
+2. Yazılımcı algoritma taslağını hazırlar, teknik ve kullanım kılavuzu bağlantılarını günceller, sohbet üzerinden birimle iletişim kurar.
+3. Geliştirme tamamlandığında durum "Tamamlandı" olur ve birim test onayı beklenir.
+4. Birim test onayıyla talep kapatılır ve proje kaydı yayıma alınır.
 
 ## 8. Arayüz ve Yerelleştirme İlkeleri
 - Tüm başlıklar, buton etiketleri, menüler ve hata mesajları Türkçe yazılmalıdır.
@@ -156,10 +159,12 @@ Rol tanımları için ASP.NET Core Identity yerine LDAP gruplarından okunan cla
 ## 10. Güvenlik ve Yetkilendirme
 - Windows Authentication ile giriş yapan kullanıcıların kimlik bilgileri LDAP üzerinden doğrulanır.
 - Uygulama içinde `AuthorizationPolicy` tanımları:
-  - `Policy = "BirimKullanicisi"` → Birim Kullanıcısı, Birim Yetkilisi, Admin, BİD Ekibi, Yazılım Lideri, Yazılımcı
-  - `Policy = "BirimYetkilisi"` → Birim Yetkilisi, Admin
-  - `Policy = "IT"` → BİD Ekibi, Yazılım Lideri, Yazılımcı, Admin
-  - `Policy = "Admin"` → Admin
+- `Policy = "RequireBirimKullanicisi"` → Birim Kullanıcısı, Birim Yetkilisi, Admin
+- `Policy = "RequireBirimYetkilisi"` → Birim Yetkilisi, Admin
+- `Policy = "RequireDegerlendirici"` → Değerlendirici 1/2/3, Admin
+- `Policy = "RequireBaskan"` → Değerlendirme Başkanı, Admin
+- `Policy = "RequireYazilimci"` → Yazılımcı, Admin
+- `Policy = "RequireAdmin"` → Admin
 - Controller ve PageModel'lerde `[Authorize(Policy = "...")]` kullanımı.
 - Talep erişiminde veri satırı düzeyinde filtreleme (ör. EF Core Global Query Filter veya servis katmanında kontrol).
 
@@ -221,12 +226,16 @@ Her rol için temel kullanıcı hikâyeleri ve kabul kriterleri net şekilde tan
 - **Onay/Red:** "Birim yetkilisi olarak talebi reddedersem gerekçe alanının dolu olması zorunlu olmalıdır." → *Kabul:* Gerekçe boşsa kaydetme engellenir.
 - **Raporlama:** "Departman raporlarını CSV dışa aktardığımda Türkçe karakterler bozulmamalıdır." → *Kabul:* UTF-8 BOM ile dışa aktarım yapılır.
 
-### Bilgi İşlem Değerlendirme Ekibi
+### Değerlendirici 1/2/3
 - **Teknik inceleme:** "Değerlendirme ekranında talep detayını açtığımda önceki onay/ret notlarını görebilmeliyim." → *Kabul:* Talep geçmişi paneli yüklenir.
 - **Mevcut yazılım yönlendirme:** "Talebi mevcut yazılıma yönlendirdiğimde ilgili yazılım linki zorunlu olmalıdır." → *Kabul:* Link boşsa doğrulama hatası döner.
 
-### Yazılım Ekibi Lideri / Yazılımcı
-- **Görev atama:** "Yazılım lideri olarak talebi projeye dönüştürdüğümde görev dağılımı ekranında geliştirici seçebilmeliyim." → *Kabul:* En az bir geliştirici seçilmeden kayda izin verilmez.
+### Değerlendirme Başkanı
+- **Karar verme:** "Üç değerlendiricinin raporlarını gördüğümde talebi onaylayıp geliştirmeye aktarabilmeliyim." → *Kabul:* Eksik değerlendirme varsa kaydetme engellenir.
+- **Reddetme:** "Talebi reddedersem gerekçenin talep detayında görünmesi gerekir." → *Kabul:* Red gerekçesi talep kartında listelenir.
+
+### Yazılımcı
+- **Görev ve algoritma:** "Atandığım projede algoritma taslağını güncellediğimde değişiklik talep detayında görünmelidir." → *Kabul:* Algoritma alanı güncel metinle yenilenir.
 - **Mesajlaşma:** "Yazılımcı olarak proje mesaj paneline yeni mesaj girdiğimde karşı tarafa bildirim gitmelidir." → *Kabul:* SignalR bildirimi ve e-posta tetiklenir.
 
 ### Admin
@@ -243,10 +252,13 @@ Aşağıdaki tablo, temel ekranları ve erişim yollarını özetler:
 | Talepler | `/birim/talep-olustur` | Birim Kullanıcısı | Yeni talep formu |
 | Talepler | `/birim/taleplerim` | Birim Kullanıcısı | Talep listesi |
 | Onay | `/birim-yetkilisi/onay-bekleyenler` | Birim Yetkilisi | Departman onay ekranı |
-| Değerlendirme | `/it/degerlendirme` | BİD Ekibi | Teknik değerlendirme havuzu |
-| Projeler | `/yazilim-ekibi/projeler` | Yazılım Lideri, Yazılımcı | Proje panosu |
+| Değerlendirme | `/Requests/DegerlendirmeBekleyen` | Değerlendirici 1/2/3 | Teknik değerlendirme havuzu |
+| Başkan Onayı | `/Requests/BaskanOnayBekleyen` | Değerlendirme Başkanı | Başkan onayı kuyruğu |
+| Projeler | `/Dashboard` | Yazılımcı | Proje panosu |
 | Dokümanlar | `/dokuman/kilavuzlar` | Yetkili roller | Kılavuz yönetimi |
 | Yönetim | `/admin/kullanicilar` | Admin | Kullanıcı/rol yönetimi |
+
+Teknik ve kullanım kılavuzları yalnızca PDF formatında yüklenir; dosyalar `wwwroot/uploads/kilavuzlar` dizininde saklanır ve dosya boyutu 20 MB ile sınırlandırılır.
 
 Mobil uyum için Bootstrap grid yapısı kullanılmalı, en kritik eylemler (talep oluştur, onayla) ekranın üst kısmında belirgin butonlarla sunulmalıdır.
 
@@ -258,7 +270,7 @@ Uygulama içi servislerin kontratları Swagger/OpenAPI ile belgelenmelidir. Öne
 - `POST /api/talepler` → Birim Kullanıcısı talepleri. Body doğrulama: maksimum 500 karakter açıklama, öncelik enum (`Dusuk`, `Orta`, `Yuksek`).
 - `PUT /api/talepler/{id}/onay` → Birim Yetkilisi onayı, body: `Durum`, `Gerekce`.
 - `POST /api/talepler/{id}/degerlendirme` → BİD ekip kararı, body: `Sonuc` (`MevcutYazilimaYonlendir`, `Gelistirme`, `Red`), `Notlar`.
-- `POST /api/projeler/{id}/gorevler` → Yazılım Lideri görev açma.
+- `POST /api/projeler/{id}/gorevler` → Yazılımcı görev planlama ve iş atama.
 - `POST /api/mesajlar` → Yazılımcı mesaj gönderme, SignalR hub tetiklenir.
 
 Her endpoint için `Authorization` header zorunlu, rol tabanlı policy kontrolleri middleware seviyesinde yapılmalıdır. Yanıtlar `application/json; charset=utf-8` formatında, hata durumlarında RFC 7807 Problem Details kullanımı önerilir.

@@ -7,10 +7,12 @@ public enum UserRole
     Personel = 2,
     BirimKullanicisi = 3,
     BirimYetkilisi = 4,
-    BilgiIslemDegerlendirmeEkibi = 5,
-    YazilimEkibiLideri = 6,
-    Yazilimci = 7,
-    Admin = 8
+    DegerlendiriciBir = 5,
+    DegerlendiriciIki = 6,
+    DegerlendiriciUc = 7,
+    DegerlendirmeBaskani = 8,
+    Yazilimci = 9,
+    Admin = 10
 }
 
 public enum ManualType
@@ -26,9 +28,10 @@ public enum RequestStatus
     Onaylandi = 2,
     Reddedildi = 3,
     Degerlendirmede = 4,
-    Gelistirmede = 5,
-    Tamamlandi = 6,
-    Kapandi = 7
+    BaskanOnayiBekliyor = 5,
+    Gelistirmede = 6,
+    Tamamlandi = 7,
+    Kapandi = 8
 }
 
 public enum RequestPriority
@@ -64,4 +67,12 @@ public enum ApprovalStatus
     Beklemede = 0,
     Onaylandi = 1,
     Reddedildi = 2
+}
+
+public enum AssessmentStage
+{
+    DegerlendiriciBir = 0,
+    DegerlendiriciIki = 1,
+    DegerlendiriciUc = 2,
+    BaskanOnayi = 3
 }

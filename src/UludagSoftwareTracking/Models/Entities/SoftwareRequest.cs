@@ -45,5 +45,7 @@ public class SoftwareRequest
 
     public ICollection<RequestAssessment> Assessments { get; set; } = new List<RequestAssessment>();
 
+    public ICollection<RequestDiscussionMessage> DiscussionMessages { get; set; } = new List<RequestDiscussionMessage>();
+
     public Project? Project { get; set; }
 }

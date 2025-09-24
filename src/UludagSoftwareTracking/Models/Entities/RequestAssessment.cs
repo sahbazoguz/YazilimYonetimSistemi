@@ -6,6 +6,8 @@ public class RequestAssessment
 {
     public int Id { get; set; }
 
+    public AssessmentStage Stage { get; set; }
+
     public AssessmentResult Result { get; set; } = AssessmentResult.Beklemede;
 
     public DateTime? AssessedOn { get; set; }

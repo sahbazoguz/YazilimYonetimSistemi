@@ -13,4 +13,6 @@ public class RequestDetailViewModel
     public IReadOnlyCollection<RequestAssessment> Degerlendirmeler { get; init; } = Array.Empty<RequestAssessment>();
 
     public Project? Proje { get; init; }
+
+    public IReadOnlyCollection<RequestDiscussionMessage> Mesajlar { get; init; } = Array.Empty<RequestDiscussionMessage>();
 }

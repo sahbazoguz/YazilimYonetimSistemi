@@ -22,8 +22,8 @@ Uludağ Üniversitesi için geliştirilen .NET 8 tabanlı Yazılım Takip Sistem
 ## Önemli Özellikler
 
 - Windows/LDAP kimlik doğrulamasıyla uyumlu Negotiate şeması ve veri tabanında tutulan rol eşlemesi.
-- Birim Kullanıcısı → Birim Yetkilisi → Bilgi İşlem zincirini takip eden talep onay süreci.
-- Yazılım kataloğu, teknik kılavuz yönetimi ve proje izleme panoları.
+- Birim Kullanıcısı → Birim Yetkilisi → üç aşamalı teknik değerlendiriciler → Değerlendirme Başkanı → Yazılımcı → Birim test onayı ile tamamlanan uçtan uca talep süreci.
+- Yazılım kataloğu, PDF tabanlı teknik/kullanım kılavuzu yönetimi, proje izleme panoları ve talep bazlı sohbet alanı.
 - Türkçe tarih, sayı ve doğrulama mesajları ile yerelleştirme ayarları.
 
 ## Notlar

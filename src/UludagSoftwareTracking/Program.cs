@@ -43,10 +43,16 @@ builder.Services.AddAuthorization(options =>
         policy => policy.RequireRole(RoleConstants.Roles.BirimKullanicisi, RoleConstants.Roles.BirimYetkilisi, RoleConstants.Roles.Admin));
     options.AddPolicy(RoleConstants.Policies.RequireBirimYetkilisi,
         policy => policy.RequireRole(RoleConstants.Roles.BirimYetkilisi, RoleConstants.Roles.Admin));
-    options.AddPolicy(RoleConstants.Policies.RequireItTeam,
-        policy => policy.RequireRole(RoleConstants.Roles.BilgiIslemDegerlendirmeEkibi, RoleConstants.Roles.Admin));
-    options.AddPolicy(RoleConstants.Policies.RequireYazilimEkibi,
-        policy => policy.RequireRole(RoleConstants.Roles.YazilimEkibiLideri, RoleConstants.Roles.Yazilimci, RoleConstants.Roles.Admin));
+    options.AddPolicy(RoleConstants.Policies.RequireDegerlendirici,
+        policy => policy.RequireRole(
+            RoleConstants.Roles.DegerlendiriciBir,
+            RoleConstants.Roles.DegerlendiriciIki,
+            RoleConstants.Roles.DegerlendiriciUc,
+            RoleConstants.Roles.Admin));
+    options.AddPolicy(RoleConstants.Policies.RequireBaskan,
+        policy => policy.RequireRole(RoleConstants.Roles.DegerlendirmeBaskani, RoleConstants.Roles.Admin));
+    options.AddPolicy(RoleConstants.Policies.RequireYazilimci,
+        policy => policy.RequireRole(RoleConstants.Roles.Yazilimci, RoleConstants.Roles.Admin));
     options.AddPolicy(RoleConstants.Policies.RequireAdmin,
         policy => policy.RequireRole(RoleConstants.Roles.Admin));
 });

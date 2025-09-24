@@ -62,8 +62,10 @@ public static class SeedData
         const string adminUserName = "ULUDAG\\admin";
         const string birimYetkilisiUserName = "ULUDAG\\birimyetkilisi";
         const string birimKullanicisiUserName = "ULUDAG\\birimkullanici";
-        const string itDegerlendirmeUserName = "ULUDAG\\itdegerlendirme";
-        const string yazilimLideriUserName = "ULUDAG\\yazilimlider";
+        const string degerlendiriciBirUserName = "ULUDAG\\deger1";
+        const string degerlendiriciIkiUserName = "ULUDAG\\deger2";
+        const string degerlendiriciUcUserName = "ULUDAG\\deger3";
+        const string baskanUserName = "ULUDAG\\baskan";
         const string yazilimciUserName = "ULUDAG\\yazilimci1";
         const string ogrenciUserName = "ULUDAG\\ogrenci";
         const string personelUserName = "ULUDAG\\personel";
@@ -73,8 +75,10 @@ public static class SeedData
             adminUserName,
             birimYetkilisiUserName,
             birimKullanicisiUserName,
-            itDegerlendirmeUserName,
-            yazilimLideriUserName,
+            degerlendiriciBirUserName,
+            degerlendiriciIkiUserName,
+            degerlendiriciUcUserName,
+            baskanUserName,
             yazilimciUserName,
             ogrenciUserName,
             personelUserName
@@ -114,23 +118,43 @@ public static class SeedData
                 DepartmentId = departmentLookup[muhendislikDepartmentName]
             };
 
-            var itDegerlendirme = new UserProfile
+            var degerlendiriciBir = new UserProfile
             {
-                UserName = itDegerlendirmeUserName,
-                FullName = "Bilgi İşlem Uzmanı",
-                Email = "it.degerlendirme@uludag.edu.tr",
+                UserName = degerlendiriciBirUserName,
+                FullName = "Teknik Değerlendirici 1",
+                Email = "deger1@uludag.edu.tr",
                 PasswordHash = defaultPasswordHash,
-                Role = UserRole.BilgiIslemDegerlendirmeEkibi,
+                Role = UserRole.DegerlendiriciBir,
                 DepartmentId = departmentLookup[bilgiIslemDepartmentName]
             };
 
-            var yazilimLideri = new UserProfile
+            var degerlendiriciIki = new UserProfile
             {
-                UserName = yazilimLideriUserName,
-                FullName = "Yazılım Ekibi Lideri",
-                Email = "yazilim.lider@uludag.edu.tr",
+                UserName = degerlendiriciIkiUserName,
+                FullName = "Teknik Değerlendirici 2",
+                Email = "deger2@uludag.edu.tr",
                 PasswordHash = defaultPasswordHash,
-                Role = UserRole.YazilimEkibiLideri,
+                Role = UserRole.DegerlendiriciIki,
+                DepartmentId = departmentLookup[bilgiIslemDepartmentName]
+            };
+
+            var degerlendiriciUc = new UserProfile
+            {
+                UserName = degerlendiriciUcUserName,
+                FullName = "Teknik Değerlendirici 3",
+                Email = "deger3@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
+                Role = UserRole.DegerlendiriciUc,
+                DepartmentId = departmentLookup[bilgiIslemDepartmentName]
+            };
+
+            var baskan = new UserProfile
+            {
+                UserName = baskanUserName,
+                FullName = "Değerlendirme Başkanı",
+                Email = "baskan@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
+                Role = UserRole.DegerlendirmeBaskani,
                 DepartmentId = departmentLookup[bilgiIslemDepartmentName]
             };
 
@@ -164,7 +188,17 @@ public static class SeedData
                 DepartmentId = departmentLookup[iibfDepartmentName]
             };
 
-            await context.UserProfiles.AddRangeAsync(admin, birimYetkilisi, birimKullanicisi, itDegerlendirme, yazilimLideri, yazilimci, ogrenci, personel);
+            await context.UserProfiles.AddRangeAsync(
+                admin,
+                birimYetkilisi,
+                birimKullanicisi,
+                degerlendiriciBir,
+                degerlendiriciIki,
+                degerlendiriciUc,
+                baskan,
+                yazilimci,
+                ogrenci,
+                personel);
             await context.SaveChangesAsync();
         }
 
@@ -235,7 +269,7 @@ public static class SeedData
                     FilePath = "/docs/lab_portal_teknik_v1.pdf",
                     Version = "1.0",
                     SoftwareId = softwareLookup[laboratuvarPortalSoftwareName],
-                    UploadedByUserId = userLookup[yazilimLideriUserName]
+                    UploadedByUserId = userLookup[yazilimciUserName]
                 }
             };
 
@@ -285,7 +319,7 @@ public static class SeedData
                     Name = "Staj Yönetim Sistemi Geliştirme",
                     Description = "Onaylanan staj talepleri için yeni yazılım geliştirme projesi.",
                     Status = ProjectStatus.Planlama,
-                    LeadUserId = userLookup[yazilimLideriUserName],
+                    LeadUserId = userLookup[yazilimciUserName],
                     StartDate = DateTime.UtcNow
                 };
 

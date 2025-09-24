@@ -28,6 +28,8 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<ProjectAssignment> ProjectAssignments => Set<ProjectAssignment>();
 
+    public DbSet<RequestDiscussionMessage> RequestDiscussionMessages => Set<RequestDiscussionMessage>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -135,6 +137,19 @@ public class ApplicationDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(a => a.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RequestDiscussionMessage>(entity =>
+        {
+            entity.Property(m => m.Message).IsRequired().HasMaxLength(1000);
+            entity.HasOne(m => m.Request)
+                .WithMany(r => r.DiscussionMessages)
+                .HasForeignKey(m => m.RequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(m => m.Sender)
+                .WithMany()
+                .HasForeignKey(m => m.SenderId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

@@ -94,18 +94,26 @@ public class DashboardService : IDashboardService
                     })
                     .ToArray();
                 break;
-            case UserRole.BilgiIslemDegerlendirmeEkibi:
-                var pendingAssessments = await _context.SoftwareRequests
+            case UserRole.DegerlendiriciBir:
+            case UserRole.DegerlendiriciIki:
+            case UserRole.DegerlendiriciUc:
+                var stage = MapStage(user!.Role);
+                var assessmentCandidates = await _context.SoftwareRequests
                     .Where(r => r.Status == RequestStatus.Degerlendirmede)
+                    .Include(r => r.Assessments)
                     .Include(r => r.Department)
                     .Include(r => r.RequestedByUser)
                     .AsNoTracking()
                     .ToListAsync(cancellationToken);
 
-                tiles.Add(new DashboardTileViewModel { Baslik = "Bekleyen Değerlendirme", Deger = pendingAssessments.Count.ToString(), Stil = "warning" });
-                tiles.Add(new DashboardTileViewModel { Baslik = "Bu Ay Gelen", Deger = pendingAssessments.Count(r => r.CreatedAt >= DateTime.UtcNow.AddDays(-30)).ToString(), Stil = "info" });
-                criticalRequests = pendingAssessments
+                var stageQueue = assessmentCandidates
+                    .Where(r => !r.Assessments.Any(a => a.Stage == stage && a.Result != AssessmentResult.Beklemede))
                     .OrderBy(r => r.CreatedAt)
+                    .ToList();
+
+                tiles.Add(new DashboardTileViewModel { Baslik = "Bekleyen Değerlendirme", Deger = stageQueue.Count.ToString(), Stil = "warning" });
+                tiles.Add(new DashboardTileViewModel { Baslik = "Bu Ay Gelen", Deger = stageQueue.Count(r => r.CreatedAt >= DateTime.UtcNow.AddDays(-30)).ToString(), Stil = "info" });
+                criticalRequests = stageQueue
                     .Select(r => new RequestListItemViewModel
                     {
                         Id = r.Id,
@@ -118,10 +126,33 @@ public class DashboardService : IDashboardService
                     })
                     .ToArray();
                 break;
-            case UserRole.YazilimEkibiLideri:
+            case UserRole.DegerlendirmeBaskani:
+                var pendingBaskan = await _context.SoftwareRequests
+                    .Where(r => r.Status == RequestStatus.BaskanOnayiBekliyor)
+                    .Include(r => r.Department)
+                    .Include(r => r.RequestedByUser)
+                    .AsNoTracking()
+                    .ToListAsync(cancellationToken);
+
+                tiles.Add(new DashboardTileViewModel { Baslik = "Onay Bekleyen Talep", Deger = pendingBaskan.Count.ToString(), Stil = "warning" });
+                tiles.Add(new DashboardTileViewModel { Baslik = "Son Haftada Tamamlanan", Deger = pendingBaskan.Count(r => r.UpdatedAt >= DateTime.UtcNow.AddDays(-7)).ToString(), Stil = "success" });
+                criticalRequests = pendingBaskan
+                    .OrderBy(r => r.CreatedAt)
+                    .Select(r => new RequestListItemViewModel
+                    {
+                        Id = r.Id,
+                        Baslik = r.Title,
+                        Durum = "Başkan Onayı Bekliyor",
+                        BirimAdi = r.Department?.Name ?? string.Empty,
+                        TalepSahibi = r.RequestedByUser?.FullName ?? r.RequestedByUser?.UserName ?? string.Empty,
+                        Oncelik = r.Priority,
+                        OlusturmaTarihi = r.CreatedAt
+                    })
+                    .ToArray();
+                break;
             case UserRole.Yazilimci:
                 activeProjects = await _context.Projects
-                    .Where(p => p.Status == ProjectStatus.Planlama || p.Status == ProjectStatus.Gelistirme || p.Status == ProjectStatus.Test)
+                    .Where(p => p.Status == ProjectStatus.Planlama || p.Status == ProjectStatus.Analiz || p.Status == ProjectStatus.Gelistirme || p.Status == ProjectStatus.Test)
                     .Include(p => p.Request)
                     .ThenInclude(r => r.Department)
                     .Include(p => p.Assignments)
@@ -169,6 +200,14 @@ public class DashboardService : IDashboardService
             SonKilavuzlar = recentManuals
         };
     }
+
+    private static AssessmentStage MapStage(UserRole role) => role switch
+    {
+        UserRole.DegerlendiriciBir => AssessmentStage.DegerlendiriciBir,
+        UserRole.DegerlendiriciIki => AssessmentStage.DegerlendiriciIki,
+        UserRole.DegerlendiriciUc => AssessmentStage.DegerlendiriciUc,
+        _ => AssessmentStage.DegerlendiriciBir
+    };
 
     private async Task<Software[]> GetFeaturedSoftwaresAsync(CancellationToken cancellationToken)
     {

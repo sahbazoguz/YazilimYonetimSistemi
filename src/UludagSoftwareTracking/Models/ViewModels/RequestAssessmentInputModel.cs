@@ -9,6 +9,8 @@ public class RequestAssessmentInputModel
 {
     public int RequestId { get; set; }
 
+    public AssessmentStage Stage { get; set; }
+
     [Display(Name = "Değerlendirme Sonucu")]
     public AssessmentResult Result { get; set; }
 

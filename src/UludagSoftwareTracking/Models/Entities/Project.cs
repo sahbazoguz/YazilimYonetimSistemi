@@ -27,5 +27,18 @@ public class Project
 
     public UserProfile? LeadUser { get; set; }
 
+    [StringLength(4000)]
+    public string? AlgorithmNotes { get; set; }
+
+    [StringLength(200)]
+    public string? TechnicalGuidePath { get; set; }
+
+    [StringLength(200)]
+    public string? UserGuidePath { get; set; }
+
+    public DateTime? CompletedOn { get; set; }
+
+    public DateTime? TestConfirmedOn { get; set; }
+
     public ICollection<ProjectAssignment> Assignments { get; set; } = new List<ProjectAssignment>();
 }

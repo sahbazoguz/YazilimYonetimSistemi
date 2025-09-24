@@ -9,8 +9,10 @@ public static class RoleConstants
         public const string Personel = "Personel";
         public const string BirimKullanicisi = "Birim Kullanıcısı";
         public const string BirimYetkilisi = "Birim Yetkilisi";
-        public const string BilgiIslemDegerlendirmeEkibi = "Bilgi İşlem Değerlendirme Ekibi";
-        public const string YazilimEkibiLideri = "Yazılım Ekibi Lideri";
+        public const string DegerlendiriciBir = "Değerlendirici 1";
+        public const string DegerlendiriciIki = "Değerlendirici 2";
+        public const string DegerlendiriciUc = "Değerlendirici 3";
+        public const string DegerlendirmeBaskani = "Değerlendirme Başkanı";
         public const string Yazilimci = "Yazılımcı";
         public const string Admin = "Admin";
     }
@@ -19,8 +21,9 @@ public static class RoleConstants
     {
         public const string RequireBirimKullanicisi = "RequireBirimKullanicisi";
         public const string RequireBirimYetkilisi = "RequireBirimYetkilisi";
-        public const string RequireItTeam = "RequireItTeam";
-        public const string RequireYazilimEkibi = "RequireYazilimEkibi";
+        public const string RequireDegerlendirici = "RequireDegerlendirici";
+        public const string RequireBaskan = "RequireBaskan";
+        public const string RequireYazilimci = "RequireYazilimci";
         public const string RequireAdmin = "RequireAdmin";
     }
 }
