@@ -42,6 +42,21 @@ body {
     font-size: 0.9rem;
 }
 
+.kullanici .giris-buton {
+    display: inline-block;
+    margin-left: 0.75rem;
+    padding: 0.35rem 0.9rem;
+    background-color: #ffd60a;
+    color: #003366;
+    border-radius: 999px;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.kullanici .giris-buton:hover {
+    background-color: #ffcd04;
+}
+
 .icerik {
     padding: 2rem;
     max-width: 1200px;
