@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore;
 
 namespace UludagSoftwareTracking.Models.Entities;
 
@@ -19,5 +20,6 @@ public class ProjectAssignment
 
     public DateTime AssignedOn { get; set; } = DateTime.UtcNow;
 
+    [Precision(18, 4)]
     public decimal CompletionPercent { get; set; }
 }
