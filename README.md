@@ -12,12 +12,13 @@
 ## Çalıştırma
 
 1. .NET 8 SDK yüklü olduğundan emin olun.
-2. Depo kökünde aşağıdaki komutları kullanın:
+2. `appsettings.Development.json` dosyasında yer alan `DefaultConnection` bağlantı dizesini kendi SQL Server örneğinize göre güncelleyin. Geliştirme ortamı için LocalDB varsayılan olarak tanımlanmıştır.
+3. Depo kökünde aşağıdaki komutları kullanın:
    ```bash
    dotnet restore
    dotnet run --project src/YazilimYonetimSistemi.Web
    ```
-3. Uygulama varsayılan olarak `https://localhost:5001` adresinden yayın yapar.
+4. Uygulama varsayılan olarak `https://localhost:5001` adresinden yayın yapar.
 
 > Not: Geliştirme ortamı için `appsettings.json` dosyasında bağlantı dizesi boş bırakılmıştır ve uygulama otomatik olarak EF Core InMemory sağlayıcısını kullanır. SQL Server veya SQLite tercih ediyorsanız `ConnectionStrings:DefaultConnection` değerini güncellemeniz yeterlidir.
 
@@ -25,11 +26,12 @@
 
 Uygulama ilk çalıştığında `SeedData` sınıfı aşağıdaki kullanıcıyı oluşturur:
 
-| Rol   | E-posta              | Parola        |
-|-------|---------------------|---------------|
-| Admin | `admin@example.com` | `ChangeMe!123` |
+| Rol   | E-posta              | Parola        | Birim |
+|-------|---------------------|---------------|-------|
+| Admin | `admin@example.com` | `ChangeMe!123` | Bilgi İşlem |
 
 Bu kullanıcı `AuthenticationProvider.Internal` olarak işaretlenmiştir ve parola doğrulaması PBKDF2 ile hash’lenmiş şekilde yapılır.
+İlk kurulumda ayrıca "Bilgi İşlem Daire Başkanlığı" isminde aktif bir birim oluşturulur ve varsayılan kullanıcı bu birime atanır.
 
 ## LDAP Konfigürasyonu
 

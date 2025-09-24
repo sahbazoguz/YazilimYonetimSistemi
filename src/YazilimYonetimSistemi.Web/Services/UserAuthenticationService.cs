@@ -38,6 +38,7 @@ public class UserAuthenticationService : IUserAuthenticationService
 
         var normalizedEmail = email.Trim().ToUpperInvariant();
         var user = await _dbContext.UserProfiles
+            .Include(profile => profile.Department)
             .SingleOrDefaultAsync(profile => profile.NormalizedEmail == normalizedEmail, cancellationToken);
 
         if (user is null)

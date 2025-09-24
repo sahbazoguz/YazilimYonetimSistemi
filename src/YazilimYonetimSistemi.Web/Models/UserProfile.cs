@@ -34,6 +34,10 @@ public class UserProfile
     [MaxLength(256)]
     public string DisplayName { get; set; } = string.Empty;
 
+    public int? DepartmentId { get; set; }
+
+    public Department? Department { get; set; }
+
     [Required]
     [MaxLength(64)]
     public string Role { get; set; } = UserRoles.UnitUser;

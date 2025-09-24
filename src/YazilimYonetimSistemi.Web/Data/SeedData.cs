@@ -24,6 +24,20 @@ public static class SeedData
 
         await context.Database.EnsureCreatedAsync();
 
+        var defaultDepartment = await context.Departments.FirstOrDefaultAsync();
+        if (defaultDepartment is null)
+        {
+            defaultDepartment = new Department
+            {
+                Name = "Bilgi İşlem Daire Başkanlığı",
+                Description = "Üniversite yazılım taleplerini yöneten birim",
+                IsActive = true
+            };
+
+            context.Departments.Add(defaultDepartment);
+            await context.SaveChangesAsync();
+        }
+
         if (await context.UserProfiles.AnyAsync())
         {
             return;
@@ -37,7 +51,8 @@ public static class SeedData
             Role = UserRoles.Admin,
             AuthenticationProvider = AuthenticationProvider.Internal,
             PasswordHash = passwordHasher.Hash(DefaultAdminPassword),
-            IsActive = true
+            IsActive = true,
+            DepartmentId = defaultDepartment.Id
         };
 
         context.UserProfiles.Add(adminProfile);

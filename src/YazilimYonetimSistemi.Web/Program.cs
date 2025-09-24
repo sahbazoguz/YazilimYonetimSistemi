@@ -17,7 +17,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     if (!string.IsNullOrWhiteSpace(connectionString))
     {
-        options.UseSqlite(connectionString);
+        options.UseSqlServer(connectionString);
     }
     else
     {

@@ -20,6 +20,8 @@
                     <dd class="col-sm-7">@User.FindFirstValue(ClaimTypes.Email)</dd>
                     <dt class="col-sm-5">Rol</dt>
                     <dd class="col-sm-7">@User.FindFirstValue(ClaimTypes.Role)</dd>
+                    <dt class="col-sm-5">Birim</dt>
+                    <dd class="col-sm-7">@User.FindFirst("departmentName")?.Value ?? "-"</dd>
                 </dl>
             </div>
         </div>

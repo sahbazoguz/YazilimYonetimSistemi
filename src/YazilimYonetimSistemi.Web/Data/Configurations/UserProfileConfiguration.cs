@@ -34,6 +34,11 @@ public class UserProfileConfiguration : IEntityTypeConfiguration<UserProfile>
         builder.Property(profile => profile.PasswordHash)
             .HasMaxLength(512);
 
+        builder.HasOne(profile => profile.Department)
+            .WithMany(department => department.Users)
+            .HasForeignKey(profile => profile.DepartmentId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.Property(profile => profile.AuthenticationProvider)
             .HasConversion<string>()
             .HasMaxLength(32)

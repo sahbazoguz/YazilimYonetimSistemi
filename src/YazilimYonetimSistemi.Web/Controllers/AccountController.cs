@@ -61,6 +61,16 @@ public class AccountController : Controller
             new(ClaimTypes.Role, user.Role)
         };
 
+        if (user.DepartmentId is not null)
+        {
+            claims.Add(new("departmentId", user.DepartmentId.Value.ToString()));
+        }
+
+        if (!string.IsNullOrWhiteSpace(user.Department?.Name))
+        {
+            claims.Add(new("departmentName", user.Department!.Name));
+        }
+
         var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         var principal = new ClaimsPrincipal(claimsIdentity);
 
