@@ -1,0 +1,37 @@
+@model UludagSoftwareTracking.Controllers.AccountController.LoginViewModel
+@{
+    ViewData["Title"] = "Sisteme Giriş";
+}
+
+<section class="form-kapsayici">
+    <h1 class="sayfa-baslik">Sisteme Giriş</h1>
+    <p class="aciklama">Kurumsal kullanıcı adınız ve şifreniz ile giriş yapabilir ya da etki alanı hesabınızla doğrulanabilirsiniz.</p>
+
+    <form asp-action="Giris" method="post" class="form">
+        <input type="hidden" asp-for="ReturnUrl" />
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <div class="mb-3">
+            <label asp-for="KullaniciAdi" class="form-label"></label>
+            <input asp-for="KullaniciAdi" class="form-control" autocomplete="username" />
+            <span asp-validation-for="KullaniciAdi" class="text-danger"></span>
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="Sifre" class="form-label"></label>
+            <input asp-for="Sifre" class="form-control" autocomplete="current-password" />
+            <span asp-validation-for="Sifre" class="text-danger"></span>
+        </div>
+
+        <div class="form-check mb-3">
+            <input asp-for="BeniHatirla" class="form-check-input" />
+            <label asp-for="BeniHatirla" class="form-check-label"></label>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Giriş Yap</button>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

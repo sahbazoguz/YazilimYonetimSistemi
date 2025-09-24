@@ -18,6 +18,9 @@ public class UserProfile
     [StringLength(200)]
     public string? Email { get; set; }
 
+    [StringLength(512)]
+    public string? PasswordHash { get; set; }
+
     public UserRole Role { get; set; } = UserRole.Personel;
 
     public int? DepartmentId { get; set; }

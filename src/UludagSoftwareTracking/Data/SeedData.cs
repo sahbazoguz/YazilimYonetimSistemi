@@ -27,12 +27,15 @@ public static class SeedData
 
         if (!await context.UserProfiles.AnyAsync())
         {
+            const string defaultPasswordHash = "100000.KV70gYKE5YwR2szBa49zcA==.nEc4jc4/Z0RfNrf4SZTcHT/iANede0gSl1fFcCc8uBg=";
+
             var admin = new UserProfile
             {
                 Id = 1,
                 UserName = "ULUDAG\\admin",
                 FullName = "Sistem Yöneticisi",
                 Email = "admin@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
                 Role = UserRole.Admin,
                 DepartmentId = 1
             };
@@ -43,6 +46,7 @@ public static class SeedData
                 UserName = "ULUDAG\\birimyetkilisi",
                 FullName = "Birim Yetkilisi",
                 Email = "birim.yetkilisi@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
                 Role = UserRole.BirimYetkilisi,
                 DepartmentId = 2
             };
@@ -53,6 +57,7 @@ public static class SeedData
                 UserName = "ULUDAG\\birimkullanici",
                 FullName = "Birim Kullanıcısı",
                 Email = "birim.kullanici@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
                 Role = UserRole.BirimKullanicisi,
                 DepartmentId = 2
             };
@@ -63,6 +68,7 @@ public static class SeedData
                 UserName = "ULUDAG\\itdegerlendirme",
                 FullName = "Bilgi İşlem Uzmanı",
                 Email = "it.degerlendirme@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
                 Role = UserRole.BilgiIslemDegerlendirmeEkibi,
                 DepartmentId = 1
             };
@@ -73,6 +79,7 @@ public static class SeedData
                 UserName = "ULUDAG\\yazilimlider",
                 FullName = "Yazılım Ekibi Lideri",
                 Email = "yazilim.lider@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
                 Role = UserRole.YazilimEkibiLideri,
                 DepartmentId = 1
             };
@@ -83,6 +90,7 @@ public static class SeedData
                 UserName = "ULUDAG\\yazilimci1",
                 FullName = "Yazılım Geliştirici",
                 Email = "yazilimci@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
                 Role = UserRole.Yazilimci,
                 DepartmentId = 1
             };
