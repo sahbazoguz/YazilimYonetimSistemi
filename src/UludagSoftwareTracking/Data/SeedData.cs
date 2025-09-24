@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using UludagSoftwareTracking.Models.Entities;
 
@@ -11,19 +12,69 @@ public static class SeedData
     {
         await context.Database.EnsureCreatedAsync();
 
+        const string bilgiIslemDepartmentName = "Bilgi İşlem Daire Başkanlığı";
+        const string muhendislikDepartmentName = "Mühendislik Fakültesi";
+        const string iibfDepartmentName = "İktisadi ve İdari Bilimler Fakültesi";
+        const string rektorlukDepartmentName = "Rektörlük";
+
+        var departmentNames = new[]
+        {
+            bilgiIslemDepartmentName,
+            muhendislikDepartmentName,
+            iibfDepartmentName,
+            rektorlukDepartmentName
+        };
+
         if (!await context.Departments.AnyAsync())
         {
             var departments = new List<Department>
             {
-                new() { Id = 1, Name = "Bilgi İşlem Daire Başkanlığı", Description = "Üniversite genelinde yazılım ve altyapı yönetiminden sorumlu." },
-                new() { Id = 2, Name = "Mühendislik Fakültesi", Description = "Mühendislik fakültesi taleplerinin yönetimi." },
-                new() { Id = 3, Name = "İktisadi ve İdari Bilimler Fakültesi", Description = "İİBF özel yazılım gereksinimleri." },
-                new() { Id = 4, Name = "Rektörlük", Description = "Kurumsal yönetim ve raporlama ihtiyaçları." }
+                new()
+                {
+                    Name = bilgiIslemDepartmentName,
+                    Description = "Üniversite genelinde yazılım ve altyapı yönetiminden sorumlu."
+                },
+                new()
+                {
+                    Name = muhendislikDepartmentName,
+                    Description = "Mühendislik fakültesi taleplerinin yönetimi."
+                },
+                new()
+                {
+                    Name = iibfDepartmentName,
+                    Description = "İİBF özel yazılım gereksinimleri."
+                },
+                new()
+                {
+                    Name = rektorlukDepartmentName,
+                    Description = "Kurumsal yönetim ve raporlama ihtiyaçları."
+                }
             };
 
             await context.Departments.AddRangeAsync(departments);
             await context.SaveChangesAsync();
         }
+
+        var departmentLookup = await context.Departments
+            .Where(d => departmentNames.Contains(d.Name))
+            .ToDictionaryAsync(d => d.Name, d => d.Id);
+
+        const string adminUserName = "ULUDAG\\admin";
+        const string birimYetkilisiUserName = "ULUDAG\\birimyetkilisi";
+        const string birimKullanicisiUserName = "ULUDAG\\birimkullanici";
+        const string itDegerlendirmeUserName = "ULUDAG\\itdegerlendirme";
+        const string yazilimLideriUserName = "ULUDAG\\yazilimlider";
+        const string yazilimciUserName = "ULUDAG\\yazilimci1";
+
+        var defaultUserNames = new[]
+        {
+            adminUserName,
+            birimYetkilisiUserName,
+            birimKullanicisiUserName,
+            itDegerlendirmeUserName,
+            yazilimLideriUserName,
+            yazilimciUserName
+        };
 
         if (!await context.UserProfiles.AnyAsync())
         {
@@ -31,73 +82,80 @@ public static class SeedData
 
             var admin = new UserProfile
             {
-                Id = 1,
-                UserName = "ULUDAG\\admin",
+                UserName = adminUserName,
                 FullName = "Sistem Yöneticisi",
                 Email = "admin@uludag.edu.tr",
                 PasswordHash = defaultPasswordHash,
                 Role = UserRole.Admin,
-                DepartmentId = 1
+                DepartmentId = departmentLookup[bilgiIslemDepartmentName]
             };
 
             var birimYetkilisi = new UserProfile
             {
-                Id = 2,
-                UserName = "ULUDAG\\birimyetkilisi",
+                UserName = birimYetkilisiUserName,
                 FullName = "Birim Yetkilisi",
                 Email = "birim.yetkilisi@uludag.edu.tr",
                 PasswordHash = defaultPasswordHash,
                 Role = UserRole.BirimYetkilisi,
-                DepartmentId = 2
+                DepartmentId = departmentLookup[muhendislikDepartmentName]
             };
 
             var birimKullanicisi = new UserProfile
             {
-                Id = 3,
-                UserName = "ULUDAG\\birimkullanici",
+                UserName = birimKullanicisiUserName,
                 FullName = "Birim Kullanıcısı",
                 Email = "birim.kullanici@uludag.edu.tr",
                 PasswordHash = defaultPasswordHash,
                 Role = UserRole.BirimKullanicisi,
-                DepartmentId = 2
+                DepartmentId = departmentLookup[muhendislikDepartmentName]
             };
 
             var itDegerlendirme = new UserProfile
             {
-                Id = 4,
-                UserName = "ULUDAG\\itdegerlendirme",
+                UserName = itDegerlendirmeUserName,
                 FullName = "Bilgi İşlem Uzmanı",
                 Email = "it.degerlendirme@uludag.edu.tr",
                 PasswordHash = defaultPasswordHash,
                 Role = UserRole.BilgiIslemDegerlendirmeEkibi,
-                DepartmentId = 1
+                DepartmentId = departmentLookup[bilgiIslemDepartmentName]
             };
 
             var yazilimLideri = new UserProfile
             {
-                Id = 5,
-                UserName = "ULUDAG\\yazilimlider",
+                UserName = yazilimLideriUserName,
                 FullName = "Yazılım Ekibi Lideri",
                 Email = "yazilim.lider@uludag.edu.tr",
                 PasswordHash = defaultPasswordHash,
                 Role = UserRole.YazilimEkibiLideri,
-                DepartmentId = 1
+                DepartmentId = departmentLookup[bilgiIslemDepartmentName]
             };
 
             var yazilimci = new UserProfile
             {
-                Id = 6,
-                UserName = "ULUDAG\\yazilimci1",
+                UserName = yazilimciUserName,
                 FullName = "Yazılım Geliştirici",
                 Email = "yazilimci@uludag.edu.tr",
                 PasswordHash = defaultPasswordHash,
                 Role = UserRole.Yazilimci,
-                DepartmentId = 1
+                DepartmentId = departmentLookup[bilgiIslemDepartmentName]
             };
 
             await context.UserProfiles.AddRangeAsync(admin, birimYetkilisi, birimKullanicisi, itDegerlendirme, yazilimLideri, yazilimci);
             await context.SaveChangesAsync();
         }
+
+        var userLookup = await context.UserProfiles
+            .Where(u => defaultUserNames.Contains(u.UserName))
+            .ToDictionaryAsync(u => u.UserName, u => u.Id);
+
+        const string akademikPersonelSoftwareName = "Akademik Personel Takip Sistemi";
+        const string laboratuvarPortalSoftwareName = "Laboratuvar Rezervasyon Portalı";
+
+        var softwareNames = new[]
+        {
+            akademikPersonelSoftwareName,
+            laboratuvarPortalSoftwareName
+        };
 
         if (!await context.Softwares.AnyAsync())
         {
@@ -105,10 +163,9 @@ public static class SeedData
             {
                 new()
                 {
-                    Id = 1,
-                    Name = "Akademik Personel Takip Sistemi",
+                    Name = akademikPersonelSoftwareName,
                     Description = "Akademik personel izin ve mesai takibini sağlayan merkezi çözüm.",
-                    DepartmentId = 1,
+                    DepartmentId = departmentLookup[bilgiIslemDepartmentName],
                     Category = "İnsan Kaynakları",
                     TechnologyStack = ".NET 8, SQL Server",
                     SupportContact = "bilgiislem@uludag.edu.tr",
@@ -116,10 +173,9 @@ public static class SeedData
                 },
                 new()
                 {
-                    Id = 2,
-                    Name = "Laboratuvar Rezervasyon Portalı",
+                    Name = laboratuvarPortalSoftwareName,
                     Description = "Laboratuvar cihazlarının planlanması ve raporlanmasını kolaylaştırır.",
-                    DepartmentId = 2,
+                    DepartmentId = departmentLookup[muhendislikDepartmentName],
                     Category = "Akademik",
                     TechnologyStack = "ASP.NET MVC, SignalR",
                     SupportContact = "labdestek@uludag.edu.tr",
@@ -131,29 +187,31 @@ public static class SeedData
             await context.SaveChangesAsync();
         }
 
+        var softwareLookup = await context.Softwares
+            .Where(s => softwareNames.Contains(s.Name))
+            .ToDictionaryAsync(s => s.Name, s => s.Id);
+
         if (!await context.SoftwareManuals.AnyAsync())
         {
             var manuals = new List<SoftwareManual>
             {
                 new()
                 {
-                    Id = 1,
                     Title = "Akademik Personel Kullanım Kılavuzu",
                     ManualType = ManualType.KullanimKilavuzu,
                     FilePath = "/docs/personel_kilavuzu_v1.pdf",
                     Version = "1.0",
-                    SoftwareId = 1,
-                    UploadedByUserId = 3
+                    SoftwareId = softwareLookup[akademikPersonelSoftwareName],
+                    UploadedByUserId = userLookup[birimKullanicisiUserName]
                 },
                 new()
                 {
-                    Id = 2,
                     Title = "Laboratuvar Portalı Teknik Kılavuz",
                     ManualType = ManualType.TeknikKilavuz,
                     FilePath = "/docs/lab_portal_teknik_v1.pdf",
                     Version = "1.0",
-                    SoftwareId = 2,
-                    UploadedByUserId = 5
+                    SoftwareId = softwareLookup[laboratuvarPortalSoftwareName],
+                    UploadedByUserId = userLookup[yazilimLideriUserName]
                 }
             };
 
@@ -165,11 +223,10 @@ public static class SeedData
         {
             var request = new SoftwareRequest
             {
-                Id = 1,
                 Title = "Staj Yönetim Sistemi",
                 Description = "Fakülte öğrencilerinin staj süreçlerinin dijital yönetimi talep edilmektedir.",
-                DepartmentId = 2,
-                RequestedByUserId = 3,
+                DepartmentId = departmentLookup[muhendislikDepartmentName],
+                RequestedByUserId = userLookup[birimKullanicisiUserName],
                 Priority = RequestPriority.Yuksek,
                 Status = RequestStatus.OnayBekleniyor,
                 CreatedAt = DateTime.UtcNow.AddDays(-10)
@@ -180,9 +237,8 @@ public static class SeedData
 
             var approval = new RequestApproval
             {
-                Id = 1,
                 RequestId = request.Id,
-                ApprovedByUserId = 2,
+                ApprovedByUserId = userLookup[birimYetkilisiUserName],
                 Status = ApprovalStatus.Beklemede
             };
 
@@ -190,33 +246,39 @@ public static class SeedData
             await context.SaveChangesAsync();
         }
 
+        var stajYonetimRequestId = await context.SoftwareRequests
+            .Where(r => r.Title == "Staj Yönetim Sistemi")
+            .Select(r => (int?)r.Id)
+            .FirstOrDefaultAsync();
+
         if (!await context.Projects.AnyAsync())
         {
-            var project = new Project
+            if (stajYonetimRequestId.HasValue)
             {
-                Id = 1,
-                RequestId = 1,
-                Name = "Staj Yönetim Sistemi Geliştirme",
-                Description = "Onaylanan staj talepleri için yeni yazılım geliştirme projesi.",
-                Status = ProjectStatus.Planlama,
-                LeadUserId = 5,
-                StartDate = DateTime.UtcNow
-            };
+                var project = new Project
+                {
+                    RequestId = stajYonetimRequestId.Value,
+                    Name = "Staj Yönetim Sistemi Geliştirme",
+                    Description = "Onaylanan staj talepleri için yeni yazılım geliştirme projesi.",
+                    Status = ProjectStatus.Planlama,
+                    LeadUserId = userLookup[yazilimLideriUserName],
+                    StartDate = DateTime.UtcNow
+                };
 
-            await context.Projects.AddAsync(project);
-            await context.SaveChangesAsync();
+                await context.Projects.AddAsync(project);
+                await context.SaveChangesAsync();
 
-            var assignment = new ProjectAssignment
-            {
-                Id = 1,
-                ProjectId = project.Id,
-                UserId = 6,
-                AssignedRole = "Yazılımcı",
-                CompletionPercent = 0
-            };
+                var assignment = new ProjectAssignment
+                {
+                    ProjectId = project.Id,
+                    UserId = userLookup[yazilimciUserName],
+                    AssignedRole = "Yazılımcı",
+                    CompletionPercent = 0
+                };
 
-            await context.ProjectAssignments.AddAsync(assignment);
-            await context.SaveChangesAsync();
+                await context.ProjectAssignments.AddAsync(assignment);
+                await context.SaveChangesAsync();
+            }
         }
     }
 }
