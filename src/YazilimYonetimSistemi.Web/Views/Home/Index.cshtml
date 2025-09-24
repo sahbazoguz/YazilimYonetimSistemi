@@ -1,0 +1,27 @@
+@{
+    ViewData["Title"] = "Yazılım Talepleri";
+}
+
+<div class="row">
+    <div class="col-lg-8">
+        <h1 class="display-6 mb-3">Yazılım Yönetim Paneline Hoşgeldiniz</h1>
+        <p class="lead">Kurumsal hesabınız ile giriş yaptığınız için teşekkürler.</p>
+        <p>Sistemde tanımlı rolünüz: <strong>@User.FindFirstValue(ClaimTypes.Role)</strong>.</p>
+        <p>Bu ekran üzerinden size tanımlanan yetkiler doğrultusunda yazılım taleplerini yönetebilir ve takip edebilirsiniz.</p>
+    </div>
+    <div class="col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">Profil Bilgileri</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Ad Soyad</dt>
+                    <dd class="col-sm-7">@User.Identity?.Name</dd>
+                    <dt class="col-sm-5">Mail</dt>
+                    <dd class="col-sm-7">@User.FindFirstValue(ClaimTypes.Email)</dd>
+                    <dt class="col-sm-5">Rol</dt>
+                    <dd class="col-sm-7">@User.FindFirstValue(ClaimTypes.Role)</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,23 @@
+body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    background-color: #f8f9fa;
+}
+
+.footer {
+    position: sticky;
+    top: 100%;
+}
+
+.card {
+    border-radius: 0.75rem;
+}
+
+.btn-primary {
+    background-color: #0058a3;
+    border-color: #0058a3;
+}
+
+.btn-primary:hover {
+    background-color: #004580;
+    border-color: #004580;
+}

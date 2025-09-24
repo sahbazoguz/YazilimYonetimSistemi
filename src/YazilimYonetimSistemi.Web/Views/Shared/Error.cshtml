@@ -1,0 +1,14 @@
+@model ErrorViewModel
+@{
+    ViewData["Title"] = "Hata";
+}
+
+<div class="text-center">
+    <h1 class="display-5 text-danger">Bir hata oluştu.</h1>
+    <p class="lead">Beklenmedik bir hata sebebiyle isteğiniz tamamlanamadı.</p>
+    @if (Model?.ShowRequestId ?? false)
+    {
+        <p><strong>Takip Numarası:</strong> <code>@Model?.RequestId</code></p>
+    }
+    <a class="btn btn-primary" asp-controller="Home" asp-action="Index">Anasayfaya dön</a>
+</div>
