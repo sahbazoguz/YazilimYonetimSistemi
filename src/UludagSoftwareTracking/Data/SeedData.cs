@@ -110,7 +110,7 @@ public static class SeedData
                     Description = "Akademik personel izin ve mesai takibini sağlayan merkezi çözüm.",
                     DepartmentId = 1,
                     Category = "İnsan Kaynakları",
-                    TechnologyStack = ".NET 9, SQL Server",
+                    TechnologyStack = ".NET 8, SQL Server",
                     SupportContact = "bilgiislem@uludag.edu.tr",
                     WebsiteUrl = "https://yazilim.uludag.edu.tr/personel"
                 },

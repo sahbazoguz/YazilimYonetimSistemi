@@ -4,7 +4,7 @@
 Uludağ Üniversitesi Yazılım Takip Sistemi (kısa adıyla CODEXE), üniversite genelindeki yazılım taleplerinin başvuru, değerlendirme ve geliştirme süreçlerini tek bir platformda yönetmek için tasarlanmıştır. Sistem, kamuya açık yazılım kataloğu ile yetkilendirilmiş kullanıcılar için talep ve değerlendirme panellerini bir araya getirir. Bu rehber, CODEXE uygulamasının uçtan uca nasıl planlanacağı, geliştirileceği ve işletileceği hakkında ayrıntılı yönlendirmeler sunar.
 
 ## 2. Teknoloji ve Altyapı
-- **Uygulama Çatısı:** .NET 9 MVC + Razor Pages hibrit yaklaşımı
+- **Uygulama Çatısı:** .NET 8 MVC + Razor Pages hibrit yaklaşımı
 - **Veritabanı:** Microsoft SQL Server (Turkish collation: `SQL_Latin1_General_CP1_CI_AS`)
 - **Kimlik Doğrulama:** Windows Authentication + LDAP entegrasyonu
 - **Sunucu Yapısı:** IIS üzerinde host edilen kurumsal intranet uygulaması
