@@ -45,7 +45,10 @@
         <div class="kullanici">
             @if (User.Identity?.IsAuthenticated ?? false)
             {
-                <span>@User.Identity!.Name</span>
+                <form asp-controller="Account" asp-action="Cikis" method="post" class="cikis-form">
+                    <span class="kullanici-adi">@User.Identity!.Name</span>
+                    <button type="submit" class="cikis-buton">Çıkış Yap</button>
+                </form>
             }
             else
             {

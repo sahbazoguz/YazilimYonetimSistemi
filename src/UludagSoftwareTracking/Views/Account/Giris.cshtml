@@ -11,19 +11,19 @@
         <input type="hidden" asp-for="ReturnUrl" />
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
-        <div class="mb-3">
+        <div class="form-grup">
             <label asp-for="KullaniciAdi" class="form-label"></label>
             <input asp-for="KullaniciAdi" class="form-control" autocomplete="username" />
             <span asp-validation-for="KullaniciAdi" class="text-danger"></span>
         </div>
 
-        <div class="mb-3">
+        <div class="form-grup">
             <label asp-for="Sifre" class="form-label"></label>
             <input asp-for="Sifre" class="form-control" autocomplete="current-password" />
             <span asp-validation-for="Sifre" class="text-danger"></span>
         </div>
 
-        <div class="form-check mb-3">
+        <div class="form-check">
             <input asp-for="BeniHatirla" class="form-check-input" />
             <label asp-for="BeniHatirla" class="form-check-label"></label>
         </div>
