@@ -65,6 +65,8 @@ public static class SeedData
         const string itDegerlendirmeUserName = "ULUDAG\\itdegerlendirme";
         const string yazilimLideriUserName = "ULUDAG\\yazilimlider";
         const string yazilimciUserName = "ULUDAG\\yazilimci1";
+        const string ogrenciUserName = "ULUDAG\\ogrenci";
+        const string personelUserName = "ULUDAG\\personel";
 
         var defaultUserNames = new[]
         {
@@ -73,12 +75,14 @@ public static class SeedData
             birimKullanicisiUserName,
             itDegerlendirmeUserName,
             yazilimLideriUserName,
-            yazilimciUserName
+            yazilimciUserName,
+            ogrenciUserName,
+            personelUserName
         };
 
         if (!await context.UserProfiles.AnyAsync())
         {
-            const string defaultPasswordHash = "100000.KV70gYKE5YwR2szBa49zcA==.nEc4jc4/Z0RfNrf4SZTcHT/iANede0gSl1fFcCc8uBg=";
+            const string defaultPasswordHash = "100000.aNKwrWGNkZEHUNENojB34w==.uCS5gjDouEetKgxujidgEjywIO6q9meU1rtP9j0VqDA=";
 
             var admin = new UserProfile
             {
@@ -140,7 +144,27 @@ public static class SeedData
                 DepartmentId = departmentLookup[bilgiIslemDepartmentName]
             };
 
-            await context.UserProfiles.AddRangeAsync(admin, birimYetkilisi, birimKullanicisi, itDegerlendirme, yazilimLideri, yazilimci);
+            var ogrenci = new UserProfile
+            {
+                UserName = ogrenciUserName,
+                FullName = "Öğrenci Kullanıcısı",
+                Email = "ogrenci@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
+                Role = UserRole.Ogrenci,
+                DepartmentId = departmentLookup[muhendislikDepartmentName]
+            };
+
+            var personel = new UserProfile
+            {
+                UserName = personelUserName,
+                FullName = "Personel Kullanıcısı",
+                Email = "personel@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
+                Role = UserRole.Personel,
+                DepartmentId = departmentLookup[iibfDepartmentName]
+            };
+
+            await context.UserProfiles.AddRangeAsync(admin, birimYetkilisi, birimKullanicisi, itDegerlendirme, yazilimLideri, yazilimci, ogrenci, personel);
             await context.SaveChangesAsync();
         }
 
