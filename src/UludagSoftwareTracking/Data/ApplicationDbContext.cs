@@ -51,6 +51,11 @@ public class ApplicationDbContext : DbContext
             entity.Property(u => u.UserName).IsRequired().HasMaxLength(100);
             entity.Property(u => u.FullName).IsRequired().HasMaxLength(150);
             entity.HasIndex(u => u.UserName).IsUnique();
+
+            entity.HasOne(u => u.Department)
+                .WithMany(d => d.Users)
+                .HasForeignKey(u => u.DepartmentId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Software>(entity =>
