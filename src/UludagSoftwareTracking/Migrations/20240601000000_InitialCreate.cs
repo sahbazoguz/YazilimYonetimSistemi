@@ -13,7 +13,7 @@ namespace UludagSoftwareTracking.Migrations
                 .Annotation("Relational:Collation", "Turkish_CI_AS");
 
             migrationBuilder.CreateTable(
-                name: "Departments",
+                name: "Department",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
@@ -25,7 +25,7 @@ namespace UludagSoftwareTracking.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Departments", x => x.Id);
+                    table.PrimaryKey("PK_Department", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -48,9 +48,9 @@ namespace UludagSoftwareTracking.Migrations
                 {
                     table.PrimaryKey("PK_UserProfiles", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_UserProfiles_Departments_DepartmentId",
+                        name: "FK_UserProfiles_Department_DepartmentId",
                         column: x => x.DepartmentId,
-                        principalTable: "Departments",
+                        principalTable: "Department",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -76,9 +76,9 @@ namespace UludagSoftwareTracking.Migrations
                 {
                     table.PrimaryKey("PK_Softwares", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Softwares_Departments_DepartmentId",
+                        name: "FK_Softwares_Department_DepartmentId",
                         column: x => x.DepartmentId,
-                        principalTable: "Departments",
+                        principalTable: "Department",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -154,9 +154,9 @@ namespace UludagSoftwareTracking.Migrations
                 {
                     table.PrimaryKey("PK_SoftwareRequests", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_SoftwareRequests_Departments_DepartmentId",
+                        name: "FK_SoftwareRequests_Department_DepartmentId",
                         column: x => x.DepartmentId,
-                        principalTable: "Departments",
+                        principalTable: "Department",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
@@ -370,8 +370,8 @@ namespace UludagSoftwareTracking.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Departments_Name",
-                table: "Departments",
+                name: "IX_Department_Name",
+                table: "Department",
                 column: "Name",
                 unique: true);
 
@@ -514,7 +514,7 @@ namespace UludagSoftwareTracking.Migrations
                 name: "UserProfiles");
 
             migrationBuilder.DropTable(
-                name: "Departments");
+                name: "Department");
         }
     }
 }

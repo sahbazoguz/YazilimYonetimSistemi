@@ -90,7 +90,7 @@ namespace UludagSoftwareTracking.Migrations
                 b.HasIndex("Name")
                     .IsUnique();
 
-                b.ToTable("Departments");
+                b.ToTable("Department");
             });
 
             modelBuilder.Entity("UludagSoftwareTracking.Models.Entities.Notification", b =>

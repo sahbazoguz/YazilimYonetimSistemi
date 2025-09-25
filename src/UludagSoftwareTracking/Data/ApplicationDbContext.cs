@@ -42,6 +42,7 @@ public class ApplicationDbContext : DbContext
 
         modelBuilder.Entity<Department>(entity =>
         {
+            entity.ToTable("Department");
             entity.Property(d => d.Name).IsRequired().HasMaxLength(150);
             entity.HasIndex(d => d.Name).IsUnique();
         });
