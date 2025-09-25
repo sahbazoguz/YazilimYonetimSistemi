@@ -26,9 +26,9 @@
             <input asp-for="DesiredCompletionDate" type="date" />
         </div>
         <div>
-            <label asp-for="DepartmentId"></label>
-            <select asp-for="DepartmentId" asp-items="@(new SelectList(Model.Departments, "Id", "Name"))"></select>
-            <span asp-validation-for="DepartmentId" class="bilgi-kutu uyari"></span>
+            <label asp-for="DepartmentName"></label>
+            <input asp-for="DepartmentName" readonly />
+            <input asp-for="DepartmentId" type="hidden" />
         </div>
         <button type="submit">Talebi Gönder</button>
         <a class="buton-link ikincil" asp-action="Taleplerim">Vazgeç</a>

@@ -1,0 +1,28 @@
+@model IReadOnlyList<NotificationViewModel>
+<div class="bildirim-kapsayici" data-notification-root>
+    <button type="button" class="bildirim-tetik" data-notification-toggle aria-label="Bildirimler">
+        <span class="bildirim-ikon">🔔</span>
+        <span class="bildirim-sayac" data-notification-count>@(Model.Count > 0 ? Model.Count.ToString() : string.Empty)</span>
+    </button>
+    <div class="bildirim-panel" data-notification-panel>
+        <h3>Bildirimler</h3>
+        @if (Model.Count == 0)
+        {
+            <p class="yardim-metin">Yeni bildiriminiz bulunmuyor.</p>
+        }
+        else
+        {
+            <ul>
+            @foreach (var bildirim in Model)
+            {
+                var hedef = string.IsNullOrWhiteSpace(bildirim.Link) ? null : bildirim.Link;
+                <li data-notification-item data-notification-id="@bildirim.Id" data-notification-link="@hedef">
+                    <div class="bildirim-baslik">@bildirim.Title</div>
+                    <p class="bildirim-icerik">@bildirim.Message</p>
+                    <span class="bildirim-zaman">@bildirim.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                </li>
+            }
+            </ul>
+        }
+    </div>
+</div>

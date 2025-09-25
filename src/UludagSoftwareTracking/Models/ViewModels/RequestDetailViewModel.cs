@@ -15,4 +15,6 @@ public class RequestDetailViewModel
     public Project? Proje { get; init; }
 
     public IReadOnlyCollection<RequestDiscussionMessage> Mesajlar { get; init; } = Array.Empty<RequestDiscussionMessage>();
+
+    public string AlgorithmJson { get; init; } = "[]";
 }

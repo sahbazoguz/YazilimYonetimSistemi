@@ -14,10 +14,14 @@ namespace UludagSoftwareTracking.Services.Implementations;
 public class ManualService : IManualService
 {
     private readonly ApplicationDbContext _context;
+    private readonly IAuditLogService _auditLogService;
+    private readonly INotificationService _notificationService;
 
-    public ManualService(ApplicationDbContext context)
+    public ManualService(ApplicationDbContext context, IAuditLogService auditLogService, INotificationService notificationService)
     {
         _context = context;
+        _auditLogService = auditLogService;
+        _notificationService = notificationService;
     }
 
     public async Task<IReadOnlyList<SoftwareManual>> GetManualsAsync(CancellationToken cancellationToken = default)
@@ -46,11 +50,10 @@ public class ManualService : IManualService
 
     public async Task<int> SaveManualAsync(ManualUploadViewModel model, int userId, CancellationToken cancellationToken = default)
     {
-        var softwareExists = await _context.Softwares.AnyAsync(s => s.Id == model.SoftwareId, cancellationToken);
-        if (!softwareExists)
-        {
-            throw new InvalidOperationException("Yazılım bulunamadı");
-        }
+        var software = await _context.Softwares
+            .Include(s => s.Department)
+            .FirstOrDefaultAsync(s => s.Id == model.SoftwareId, cancellationToken)
+            ?? throw new InvalidOperationException("Yazılım bulunamadı");
 
         var manual = new SoftwareManual
         {
@@ -66,6 +69,24 @@ public class ManualService : IManualService
 
         _context.SoftwareManuals.Add(manual);
         await _context.SaveChangesAsync(cancellationToken);
+
+        await _auditLogService.RecordAsync(userId, "Kılavuz Yükleme", nameof(SoftwareManual), manual.Id,
+            $"{software.Name} - {manual.ManualType}", cancellationToken);
+
+        var recipients = await _context.UserProfiles
+            .Where(u => u.IsActive && u.Id != userId)
+            .Where(u =>
+                (software.DepartmentId != null && u.DepartmentId == software.DepartmentId &&
+                 (u.Role == UserRole.BirimYetkilisi || u.Role == UserRole.BirimKullanicisi)) ||
+                u.Role == UserRole.Yazilimci)
+            .ToListAsync(cancellationToken);
+
+        await _notificationService.SendAsync(recipients,
+            "Kılavuz Yüklendi",
+            $"{software.Name} için {manual.ManualType} kılavuzu güncellendi.",
+            manual.FilePath,
+            cancellationToken);
+
         return manual.Id;
     }
 }

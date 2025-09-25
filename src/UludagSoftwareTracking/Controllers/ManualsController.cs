@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using UludagSoftwareTracking.Models.Entities;
 using UludagSoftwareTracking.Models.ViewModels;
 using UludagSoftwareTracking.Services.Interfaces;
 using UludagSoftwareTracking.Services.Security;
@@ -68,6 +69,21 @@ public class ManualsController : Controller
             return Forbid();
         }
 
+        var isDeveloper = user.Role == UserRole.Yazilimci;
+        var isUnitUser = user.Role == UserRole.BirimKullanicisi;
+
+        if (model.ManualType == ManualType.KullanimKilavuzu && !isUnitUser)
+        {
+            TempData["Warning"] = "Kullanım kılavuzu yalnızca talep sahibi birim tarafından yüklenebilir.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (model.ManualType == ManualType.TeknikKilavuz && !isDeveloper)
+        {
+            TempData["Warning"] = "Teknik kılavuz yalnızca geliştiriciler tarafından yüklenebilir.";
+            return RedirectToAction(nameof(Index));
+        }
+
         await _manualService.SaveManualAsync(model, user.Id, cancellationToken);
         TempData["Success"] = "Kılavuz başarıyla kaydedildi";
         return RedirectToAction(nameof(Index));
@@ -76,9 +92,6 @@ public class ManualsController : Controller
     private bool KullaniciKilavuzYetkisineSahip()
     {
         return User.IsInRole(RoleConstants.Roles.BirimKullanicisi) ||
-               User.IsInRole(RoleConstants.Roles.BirimYetkilisi) ||
-               User.IsInRole(RoleConstants.Roles.DegerlendirmeBaskani) ||
-               User.IsInRole(RoleConstants.Roles.Yazilimci) ||
-               User.IsInRole(RoleConstants.Roles.Admin);
+               User.IsInRole(RoleConstants.Roles.Yazilimci);
     }
 }

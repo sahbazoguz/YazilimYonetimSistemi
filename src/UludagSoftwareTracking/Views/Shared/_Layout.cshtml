@@ -1,9 +1,14 @@
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@{
+    var tokens = Antiforgery.GetAndStoreTokens(Context);
+}
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - ULUDAĞ Yazılım Takip Sistemi</title>
+    <meta name="csrf-token" content="@tokens.RequestToken" />
     <link rel="stylesheet" href="~/css/site.css" />
 </head>
 <body>
@@ -21,6 +26,7 @@
                     }
                     if (User.IsInRole(RoleConstants.Roles.BirimYetkilisi) || User.IsInRole(RoleConstants.Roles.Admin))
                     {
+                        <li><a asp-controller="Requests" asp-action="Birim">Birim Talepleri</a></li>
                         <li><a asp-controller="Requests" asp-action="OnayBekleyen">Onay Bekleyen Talepler</a></li>
                     }
                     if (User.IsInRole(RoleConstants.Roles.DegerlendiriciBir) ||
@@ -39,16 +45,14 @@
                         <li><a asp-controller="Dashboard" asp-action="Index">Proje Panosu</a></li>
                     }
                     if (User.IsInRole(RoleConstants.Roles.BirimKullanicisi) ||
-                        User.IsInRole(RoleConstants.Roles.BirimYetkilisi) ||
-                        User.IsInRole(RoleConstants.Roles.DegerlendirmeBaskani) ||
-                        User.IsInRole(RoleConstants.Roles.Yazilimci) ||
-                        User.IsInRole(RoleConstants.Roles.Admin))
+                        User.IsInRole(RoleConstants.Roles.Yazilimci))
                     {
                         <li><a asp-controller="Manuals" asp-action="Index">Kılavuz Yönetimi</a></li>
                     }
                     if (User.IsInRole(RoleConstants.Roles.Admin))
                     {
                         <li><a asp-controller="Admin" asp-action="Index">Sistem Yönetimi</a></li>
+                        <li><a asp-controller="Admin" asp-action="Loglar">İşlem Günlüğü</a></li>
                     }
                 }
             </ul>
@@ -56,6 +60,7 @@
         <div class="kullanici">
             @if (User.Identity?.IsAuthenticated ?? false)
             {
+                @await Component.InvokeAsync("Notifications")
                 <form asp-controller="Account" asp-action="Cikis" method="post" class="cikis-form">
                     <span class="kullanici-adi">@User.Identity!.Name</span>
                     <button type="submit" class="cikis-buton">Çıkış Yap</button>

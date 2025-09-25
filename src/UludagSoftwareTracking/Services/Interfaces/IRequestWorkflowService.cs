@@ -30,9 +30,11 @@ public interface IRequestWorkflowService
 
     Task AssessAsync(RequestAssessmentInputModel model, int assessorUserId, UserRole assessorRole, CancellationToken cancellationToken = default);
 
-    Task UpdateAlgorithmAsync(int requestId, int userId, string algorithmNotes, CancellationToken cancellationToken = default);
+    Task UpdateAlgorithmAsync(int requestId, int userId, string algorithmJson, CancellationToken cancellationToken = default);
 
-    Task UpdateGuidesAsync(int requestId, int userId, string? technicalGuidePath, string? userGuidePath, CancellationToken cancellationToken = default);
+    Task UpdateTechnicalGuideAsync(int requestId, int userId, string technicalGuidePath, CancellationToken cancellationToken = default);
+
+    Task UpdateUserGuideAsync(int requestId, int userId, string userGuidePath, CancellationToken cancellationToken = default);
 
     Task MarkDevelopmentCompletedAsync(int requestId, int userId, CancellationToken cancellationToken = default);
 

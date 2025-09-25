@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -21,11 +22,21 @@ public class RequestWorkflowService : IRequestWorkflowService
         AssessmentStage.DegerlendiriciUc
     };
 
-    private readonly ApplicationDbContext _context;
+    private static readonly JsonSerializerOptions AlgorithmSerializerOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        WriteIndented = false
+    };
 
-    public RequestWorkflowService(ApplicationDbContext context)
+    private readonly ApplicationDbContext _context;
+    private readonly IAuditLogService _auditLogService;
+    private readonly INotificationService _notificationService;
+
+    public RequestWorkflowService(ApplicationDbContext context, IAuditLogService auditLogService, INotificationService notificationService)
     {
         _context = context;
+        _auditLogService = auditLogService;
+        _notificationService = notificationService;
     }
 
     public async Task<RequestOverviewViewModel> GetRequestsForUserAsync(int userId, CancellationToken cancellationToken = default)
@@ -136,7 +147,8 @@ public class RequestWorkflowService : IRequestWorkflowService
             Proje = request.Project,
             Mesajlar = request.DiscussionMessages
                 .OrderBy(m => m.PostedOn)
-                .ToArray()
+                .ToArray(),
+            AlgorithmJson = BuildAlgorithmJsonForView(request.Project?.AlgorithmNotes)
         };
     }
 
@@ -171,6 +183,9 @@ public class RequestWorkflowService : IRequestWorkflowService
         await _context.RequestApprovals.AddAsync(approval, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
 
+        await _auditLogService.RecordAsync(userId, "Talep Oluşturma", nameof(SoftwareRequest), request.Id,
+            $"Talep Başlığı: {request.Title}", cancellationToken);
+
         return request.Id;
     }
 
@@ -178,6 +193,7 @@ public class RequestWorkflowService : IRequestWorkflowService
     {
         var request = await _context.SoftwareRequests
             .Include(r => r.Approvals)
+            .Include(r => r.RequestedByUser)
             .FirstOrDefaultAsync(r => r.Id == requestId, cancellationToken)
             ?? throw new InvalidOperationException("Talep bulunamadı");
 
@@ -214,12 +230,35 @@ public class RequestWorkflowService : IRequestWorkflowService
         approval.Notes = notes;
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        await _auditLogService.RecordAsync(approverUserId, "Talep Onayı", nameof(SoftwareRequest), request.Id,
+            string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(), cancellationToken);
+
+        var recipients = new List<UserProfile>();
+        if (request.RequestedByUser is not null)
+        {
+            recipients.Add(request.RequestedByUser);
+        }
+
+        var evaluators = await GetUsersByRolesAsync(cancellationToken,
+            UserRole.DegerlendiriciBir,
+            UserRole.DegerlendiriciIki,
+            UserRole.DegerlendiriciUc,
+            UserRole.DegerlendirmeBaskani);
+        recipients.AddRange(evaluators);
+
+        await _notificationService.SendAsync(recipients,
+            "Talep Onaylandı",
+            $"\"{request.Title}\" talebi değerlendirme aşamasına geçti.",
+            $"/Requests/Detay/{request.Id}",
+            cancellationToken);
     }
 
     public async Task RejectAsync(int requestId, int approverUserId, string? notes, CancellationToken cancellationToken = default)
     {
         var request = await _context.SoftwareRequests
             .Include(r => r.Approvals)
+            .Include(r => r.RequestedByUser)
             .FirstOrDefaultAsync(r => r.Id == requestId, cancellationToken)
             ?? throw new InvalidOperationException("Talep bulunamadı");
 
@@ -254,6 +293,21 @@ public class RequestWorkflowService : IRequestWorkflowService
         approval.Notes = notes;
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        await _auditLogService.RecordAsync(approverUserId, "Talep Reddi", nameof(SoftwareRequest), request.Id,
+            string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(), cancellationToken);
+
+        var recipients = new List<UserProfile>();
+        if (request.RequestedByUser is not null)
+        {
+            recipients.Add(request.RequestedByUser);
+        }
+
+        await _notificationService.SendAsync(recipients,
+            "Talep Reddedildi",
+            $"\"{request.Title}\" talebi reddedildi.",
+            $"/Requests/Detay/{request.Id}",
+            cancellationToken);
     }
 
     public async Task AssessAsync(RequestAssessmentInputModel model, int assessorUserId, UserRole assessorRole, CancellationToken cancellationToken = default)
@@ -333,9 +387,13 @@ public class RequestWorkflowService : IRequestWorkflowService
 
         request.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
+
+        await _auditLogService.RecordAsync(assessorUserId, stage == AssessmentStage.BaskanOnayi ? "Başkan Kararı" : "Teknik Değerlendirme",
+            nameof(SoftwareRequest), request.Id,
+            $"Aşama: {stage} Sonuç: {model.Result}", cancellationToken);
     }
 
-    public async Task UpdateAlgorithmAsync(int requestId, int userId, string algorithmNotes, CancellationToken cancellationToken = default)
+    public async Task UpdateAlgorithmAsync(int requestId, int userId, string algorithmJson, CancellationToken cancellationToken = default)
     {
         var request = await _context.SoftwareRequests
             .Include(r => r.Project)
@@ -349,7 +407,7 @@ public class RequestWorkflowService : IRequestWorkflowService
         }
 
         var user = await GetUserAsync(userId, cancellationToken);
-        if (!IsDeveloper(user) && user.Role != UserRole.Admin)
+        if (!IsDeveloper(user) && user.Role != UserRole.Admin && user.Role != UserRole.BirimKullanicisi)
         {
             throw new InvalidOperationException("Algoritma üzerinde değişiklik yapma yetkiniz yok.");
         }
@@ -359,18 +417,27 @@ public class RequestWorkflowService : IRequestWorkflowService
             throw new InvalidOperationException("Bu projeye atanmadınız.");
         }
 
-        var trimmed = string.IsNullOrWhiteSpace(algorithmNotes) ? null : algorithmNotes.Trim();
-        request.Project.AlgorithmNotes = trimmed;
+        if (user.Role == UserRole.BirimKullanicisi && user.DepartmentId != request.DepartmentId)
+        {
+            throw new InvalidOperationException("Yalnızca talep sahibi birim algoritma planını güncelleyebilir.");
+        }
+
+        var normalized = NormalizeAlgorithmJson(algorithmJson);
+        request.Project.AlgorithmNotes = normalized;
         request.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        await _auditLogService.RecordAsync(userId, "Algoritma Güncelleme", nameof(Project), request.Project.Id,
+            null, cancellationToken);
     }
 
-    public async Task UpdateGuidesAsync(int requestId, int userId, string? technicalGuidePath, string? userGuidePath, CancellationToken cancellationToken = default)
+    public async Task UpdateTechnicalGuideAsync(int requestId, int userId, string technicalGuidePath, CancellationToken cancellationToken = default)
     {
         var request = await _context.SoftwareRequests
             .Include(r => r.Project)
             .ThenInclude(p => p!.Assignments)
+            .Include(r => r.RequestedByUser)
             .FirstOrDefaultAsync(r => r.Id == requestId, cancellationToken)
             ?? throw new InvalidOperationException("Talep bulunamadı");
 
@@ -380,42 +447,103 @@ public class RequestWorkflowService : IRequestWorkflowService
         }
 
         var user = await GetUserAsync(userId, cancellationToken);
-        if (!IsDeveloper(user) && user.Role != UserRole.Admin)
+        if (!IsDeveloper(user))
         {
             throw new InvalidOperationException("Kılavuz bilgilerini güncelleme yetkiniz yok.");
         }
 
-        if (IsDeveloper(user) && !request.Project.Assignments.Any(a => a.UserId == userId))
+        if (!request.Project.Assignments.Any(a => a.UserId == userId))
         {
             throw new InvalidOperationException("Bu projeye atanmadınız.");
         }
 
-        var hasUpdate = false;
-
-        if (technicalGuidePath is not null)
-        {
-            request.Project.TechnicalGuidePath = string.IsNullOrWhiteSpace(technicalGuidePath)
-                ? null
-                : technicalGuidePath.Trim();
-            hasUpdate = true;
-        }
-
-        if (userGuidePath is not null)
-        {
-            request.Project.UserGuidePath = string.IsNullOrWhiteSpace(userGuidePath)
-                ? null
-                : userGuidePath.Trim();
-            hasUpdate = true;
-        }
-
-        if (!hasUpdate)
-        {
-            return;
-        }
-
+        request.Project.TechnicalGuidePath = string.IsNullOrWhiteSpace(technicalGuidePath)
+            ? null
+            : technicalGuidePath.Trim();
         request.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        var recipients = new List<UserProfile>();
+        if (request.RequestedByUser is not null)
+        {
+            recipients.Add(request.RequestedByUser);
+        }
+
+        recipients.AddRange(await GetDepartmentRoleUsersAsync(request.DepartmentId, cancellationToken,
+            UserRole.BirimYetkilisi, UserRole.BirimKullanicisi));
+        recipients.AddRange(await GetProjectDevelopersAsync(request.Project.Id, cancellationToken));
+
+        recipients = recipients
+            .Where(u => u is not null && u.Id != userId)
+            .GroupBy(u => u!.Id)
+            .Select(g => g.First()!)
+            .ToList();
+
+        await _notificationService.SendAsync(recipients,
+            "Teknik Kılavuz Güncellendi",
+            $"\"{request.Title}\" talebinin teknik kılavuzu güncellendi.",
+            request.Project.TechnicalGuidePath,
+            cancellationToken);
+
+        await _auditLogService.RecordAsync(userId, "Teknik Kılavuz Güncelleme", nameof(Project), request.Project.Id,
+            request.Project.TechnicalGuidePath, cancellationToken);
+    }
+
+    public async Task UpdateUserGuideAsync(int requestId, int userId, string userGuidePath, CancellationToken cancellationToken = default)
+    {
+        var request = await _context.SoftwareRequests
+            .Include(r => r.Project)
+            .Include(r => r.RequestedByUser)
+            .FirstOrDefaultAsync(r => r.Id == requestId, cancellationToken)
+            ?? throw new InvalidOperationException("Talep bulunamadı");
+
+        if (request.Project is null)
+        {
+            throw new InvalidOperationException("Proje oluşturulmadan kılavuz bilgileri güncellenemez.");
+        }
+
+        var user = await GetUserAsync(userId, cancellationToken);
+        if (user.Role != UserRole.BirimKullanicisi)
+        {
+            throw new InvalidOperationException("Kılavuz bilgilerini güncelleme yetkiniz yok.");
+        }
+
+        if (user.DepartmentId != request.DepartmentId)
+        {
+            throw new InvalidOperationException("Yalnızca talep sahibi birim kullanım kılavuzu yükleyebilir.");
+        }
+
+        request.Project.UserGuidePath = string.IsNullOrWhiteSpace(userGuidePath)
+            ? null
+            : userGuidePath.Trim();
+        request.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        var recipients = new List<UserProfile>();
+        recipients.AddRange(await GetProjectDevelopersAsync(request.Project.Id, cancellationToken));
+        recipients.AddRange(await GetDepartmentRoleUsersAsync(request.DepartmentId, cancellationToken, UserRole.BirimYetkilisi));
+
+        if (request.RequestedByUser is not null)
+        {
+            recipients.Add(request.RequestedByUser);
+        }
+
+        recipients = recipients
+            .Where(u => u is not null && u.Id != userId)
+            .GroupBy(u => u!.Id)
+            .Select(g => g.First()!)
+            .ToList();
+
+        await _notificationService.SendAsync(recipients,
+            "Kullanım Kılavuzu Güncellendi",
+            $"\"{request.Title}\" talebinin kullanım kılavuzu güncellendi.",
+            request.Project.UserGuidePath,
+            cancellationToken);
+
+        await _auditLogService.RecordAsync(userId, "Kullanım Kılavuzu Güncelleme", nameof(Project), request.Project.Id,
+            request.Project.UserGuidePath, cancellationToken);
     }
 
     public async Task MarkDevelopmentCompletedAsync(int requestId, int userId, CancellationToken cancellationToken = default)
@@ -453,6 +581,17 @@ public class RequestWorkflowService : IRequestWorkflowService
         request.Project.CompletedOn = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        var recipients = new List<UserProfile>();
+        recipients.AddRange(await GetDepartmentRoleUsersAsync(request.DepartmentId, cancellationToken, UserRole.BirimKullanicisi, UserRole.BirimYetkilisi));
+
+        await _notificationService.SendAsync(recipients,
+            "Geliştirme Tamamlandı",
+            $"\"{request.Title}\" talebi test aşamasına geçti.",
+            $"/Requests/Detay/{request.Id}",
+            cancellationToken);
+
+        await _auditLogService.RecordAsync(userId, "Geliştirme Tamamlama", nameof(SoftwareRequest), request.Id, null, cancellationToken);
     }
 
     public async Task ConfirmTestingAsync(int requestId, int userId, CancellationToken cancellationToken = default)
@@ -488,6 +627,15 @@ public class RequestWorkflowService : IRequestWorkflowService
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        var recipients = await GetProjectDevelopersAsync(request.Project?.Id ?? 0, cancellationToken);
+        await _notificationService.SendAsync(recipients,
+            "Test Onayı Verildi",
+            $"\"{request.Title}\" talebi için birim testi tamamlandı.",
+            $"/Requests/Detay/{request.Id}",
+            cancellationToken);
+
+        await _auditLogService.RecordAsync(userId, "Test Onayı", nameof(SoftwareRequest), request.Id, null, cancellationToken);
     }
 
     public async Task AddDiscussionMessageAsync(int requestId, int userId, string message, CancellationToken cancellationToken = default)
@@ -533,6 +681,10 @@ public class RequestWorkflowService : IRequestWorkflowService
         request.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        var logOzet = trimmed.Length > 150 ? trimmed[..150] + "…" : trimmed;
+        await _auditLogService.RecordAsync(userId, "Talep Mesajı", nameof(SoftwareRequest), request.Id,
+            logOzet, cancellationToken);
     }
 
     private static bool IsDeveloper(UserProfile user) => user.Role == UserRole.Yazilimci;
@@ -562,6 +714,97 @@ public class RequestWorkflowService : IRequestWorkflowService
         return await _context.UserProfiles
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken)
             ?? throw new InvalidOperationException("Kullanıcı bulunamadı");
+    }
+
+    private static string? NormalizeAlgorithmJson(string algorithmJson)
+    {
+        if (string.IsNullOrWhiteSpace(algorithmJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            var steps = JsonSerializer.Deserialize<List<AlgorithmStepModel>>(algorithmJson, AlgorithmSerializerOptions)
+                ?.Where(s => !string.IsNullOrWhiteSpace(s.Title))
+                .Select(s => new AlgorithmStepModel
+                {
+                    Title = s.Title.Trim(),
+                    Description = string.IsNullOrWhiteSpace(s.Description) ? null : s.Description.Trim()
+                })
+                .ToList() ?? new List<AlgorithmStepModel>();
+
+            if (steps.Count == 0)
+            {
+                return null;
+            }
+
+            return JsonSerializer.Serialize(steps, AlgorithmSerializerOptions);
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException("Algoritma akışı çözümlenemedi.", ex);
+        }
+    }
+
+    private static string BuildAlgorithmJsonForView(string? algorithmNotes)
+    {
+        if (string.IsNullOrWhiteSpace(algorithmNotes))
+        {
+            return "[]";
+        }
+
+        try
+        {
+            var steps = JsonSerializer.Deserialize<List<AlgorithmStepModel>>(algorithmNotes, AlgorithmSerializerOptions)
+                ?.Where(s => !string.IsNullOrWhiteSpace(s.Title))
+                .Select(s => new AlgorithmStepModel
+                {
+                    Title = s.Title.Trim(),
+                    Description = string.IsNullOrWhiteSpace(s.Description) ? null : s.Description.Trim()
+                })
+                .ToList() ?? new List<AlgorithmStepModel>();
+
+            return JsonSerializer.Serialize(steps, AlgorithmSerializerOptions);
+        }
+        catch (JsonException)
+        {
+            var fallback = new List<AlgorithmStepModel>
+            {
+                new() { Title = "Akış", Description = algorithmNotes!.Trim() }
+            };
+            return JsonSerializer.Serialize(fallback, AlgorithmSerializerOptions);
+        }
+    }
+
+    private async Task<List<UserProfile>> GetUsersByRolesAsync(CancellationToken cancellationToken, params UserRole[] roles)
+    {
+        return await _context.UserProfiles
+            .Where(u => u.IsActive && roles.Contains(u.Role))
+            .ToListAsync(cancellationToken);
+    }
+
+    private async Task<List<UserProfile>> GetDepartmentRoleUsersAsync(int departmentId, CancellationToken cancellationToken, params UserRole[] roles)
+    {
+        return await _context.UserProfiles
+            .Where(u => u.IsActive && u.DepartmentId == departmentId && roles.Contains(u.Role))
+            .ToListAsync(cancellationToken);
+    }
+
+    private async Task<List<UserProfile>> GetProjectDevelopersAsync(int projectId, CancellationToken cancellationToken)
+    {
+        var developers = await _context.ProjectAssignments
+            .Where(a => a.ProjectId == projectId)
+            .Include(a => a.User)
+            .Select(a => a.User)
+            .Where(u => u != null && u.IsActive)
+            .ToListAsync(cancellationToken);
+
+        return developers
+            .Where(u => u is not null)
+            .GroupBy(u => u!.Id)
+            .Select(g => g.First()!)
+            .ToList();
     }
 
     private static AssessmentStage MapStage(UserRole role) => role switch

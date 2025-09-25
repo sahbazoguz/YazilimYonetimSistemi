@@ -14,11 +14,13 @@ public class AdminController : Controller
 {
     private readonly IUserProfileService _userProfileService;
     private readonly IDepartmentService _departmentService;
+    private readonly IAuditLogService _auditLogService;
 
-    public AdminController(IUserProfileService userProfileService, IDepartmentService departmentService)
+    public AdminController(IUserProfileService userProfileService, IDepartmentService departmentService, IAuditLogService auditLogService)
     {
         _userProfileService = userProfileService;
         _departmentService = departmentService;
+        _auditLogService = auditLogService;
     }
 
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
@@ -66,5 +68,11 @@ public class AdminController : Controller
         await _userProfileService.UpdateRoleAsync(model.UserName, model.Role, model.DepartmentId, cancellationToken);
         TempData["Success"] = "Rol ataması güncellendi";
         return RedirectToAction(nameof(Index));
+    }
+
+    public async Task<IActionResult> Loglar(CancellationToken cancellationToken)
+    {
+        var loglar = await _auditLogService.GetLogsAsync(cancellationToken);
+        return View(loglar);
     }
 }

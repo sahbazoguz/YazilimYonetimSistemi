@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using UludagSoftwareTracking.Models.Entities;
 
@@ -27,5 +26,6 @@ public class RequestCreateViewModel
     [Display(Name = "Birim")]
     public int DepartmentId { get; set; }
 
-    public IReadOnlyCollection<Department> Departments { get; set; } = Array.Empty<Department>();
+    [Display(Name = "Birim")]
+    public string DepartmentName { get; set; } = string.Empty;
 }

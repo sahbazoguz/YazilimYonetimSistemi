@@ -55,6 +55,8 @@ builder.Services.AddAuthorization(options =>
         policy => policy.RequireRole(RoleConstants.Roles.Yazilimci, RoleConstants.Roles.Admin));
     options.AddPolicy(RoleConstants.Policies.RequireAdmin,
         policy => policy.RequireRole(RoleConstants.Roles.Admin));
+    options.AddPolicy(RoleConstants.Policies.RequireAlgorithmEditor,
+        policy => policy.RequireRole(RoleConstants.Roles.BirimKullanicisi, RoleConstants.Roles.Yazilimci));
 });
 
 builder.Services.AddScoped<IUserContextService, UserContextService>();
@@ -64,8 +66,13 @@ builder.Services.AddScoped<IRequestWorkflowService, RequestWorkflowService>();
 builder.Services.AddScoped<IManualService, ManualService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IDepartmentService, DepartmentService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<IClaimsTransformation, UserClaimsTransformation>();
 builder.Services.AddHttpContextAccessor();
+
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 
 builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
 

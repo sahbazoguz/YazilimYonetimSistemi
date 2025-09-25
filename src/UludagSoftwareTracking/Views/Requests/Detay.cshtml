@@ -96,28 +96,40 @@
         <h2>İlgili Proje</h2>
         <p><strong>Proje Adı:</strong> @Model.Proje.Name</p>
         <p><strong>Durum:</strong> @Model.Proje.Status</p>
-        <p><strong>Sorumlu:</strong> @(Model.Proje.LeadUser?.FullName ?? "-" )</p>
-        @if (!string.IsNullOrWhiteSpace(Model.Proje.AlgorithmNotes))
-        {
-            <div>
-                <strong>Algoritma Taslağı:</strong>
-                <pre class="metin-kutu">@Model.Proje.AlgorithmNotes</pre>
+        <p><strong>Sorumlu:</strong> @(Model.Proje.LeadUser?.FullName ?? "-")</p>
+        <div class="algoritma-blok">
+            <h3>Algoritma Akışı</h3>
+            <div class="akisma-onizleme" id="algoritma-onizleme-@Model.Talep!.Id" data-flow-preview data-flow-source="@Model.AlgorithmJson">
+                <p class="yardim-metin">Henüz adım eklenmedi.</p>
             </div>
-        }
-        @if (!string.IsNullOrWhiteSpace(Model.Proje.TechnicalGuidePath))
-        {
-            <p>
-                <strong>Teknik Kılavuz:</strong>
-                <a href="@Model.Proje.TechnicalGuidePath" target="_blank" rel="noopener">PDF'i görüntüle</a>
-            </p>
-        }
-        @if (!string.IsNullOrWhiteSpace(Model.Proje.UserGuidePath))
-        {
-            <p>
-                <strong>Kullanım Kılavuzu:</strong>
-                <a href="@Model.Proje.UserGuidePath" target="_blank" rel="noopener">PDF'i görüntüle</a>
-            </p>
-        }
+        </div>
+        <div class="kilavuz-blok">
+            <h3>Kılavuzlar</h3>
+            <ul class="kilavuz-listesi">
+                <li>
+                    <span class="kilavuz-etiket">Teknik Kılavuz:</span>
+                    @if (!string.IsNullOrWhiteSpace(Model.Proje.TechnicalGuidePath))
+                    {
+                        <a href="@Model.Proje.TechnicalGuidePath" target="_blank" rel="noopener">PDF'i görüntüle</a>
+                    }
+                    else
+                    {
+                        <span>Henüz yüklenmedi</span>
+                    }
+                </li>
+                <li>
+                    <span class="kilavuz-etiket">Kullanım Kılavuzu:</span>
+                    @if (!string.IsNullOrWhiteSpace(Model.Proje.UserGuidePath))
+                    {
+                        <a href="@Model.Proje.UserGuidePath" target="_blank" rel="noopener">PDF'i görüntüle</a>
+                    }
+                    else
+                    {
+                        <span>Henüz yüklenmedi</span>
+                    }
+                </li>
+            </ul>
+        </div>
         @if (Model.Proje.CompletedOn is not null)
         {
             <p><strong>Geliştirme Tamamlanma Tarihi:</strong> @Model.Proje.CompletedOn?.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</p>
@@ -126,6 +138,62 @@
         {
             <p><strong>Birim Test Onayı:</strong> @Model.Proje.TestConfirmedOn?.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</p>
         }
+    </section>
+}
+
+@if (Model.Proje is not null && (User.IsInRole(RoleConstants.Roles.Yazilimci) || User.IsInRole(RoleConstants.Roles.BirimKullanicisi)))
+{
+    <section class="form-alani">
+        <h2>Algoritma Tasarım Editörü</h2>
+        <form asp-action="AlgoritmaGuncelle" asp-route-id="@Model.Talep!.Id" method="post" data-flow-form data-flow-target="#algoritma-onizleme-@Model.Talep!.Id">
+            <input type="hidden" name="algoritmaJson" value="@Model.AlgorithmJson" data-flow-input />
+            <div class="akisma-editor" data-flow-editor>
+                <ul class="akisma-adim-listesi" data-flow-list></ul>
+                <button type="button" class="buton-link" data-flow-add>Yeni Adım Ekle</button>
+            </div>
+            <p class="yardim-metin">Adımları sürükleyip bırakarak sıralayın, her adım için başlık ve açıklama girin.</p>
+            <button type="submit">Algoritmayı Kaydet</button>
+        </form>
+    </section>
+}
+
+@if (Model.Proje is not null && User.IsInRole(RoleConstants.Roles.Yazilimci))
+{
+    <section class="form-alani">
+        <h2>Teknik Kılavuz Güncelle</h2>
+        <form asp-action="KilavuzGuncelle" asp-route-id="@Model.Talep!.Id" method="post" enctype="multipart/form-data">
+            <label for="teknikKilavuz">Teknik Kılavuz (PDF)</label>
+            <input type="file" id="teknikKilavuz" name="teknikKilavuzDosyasi" accept=".pdf" />
+            <p class="yardim-metin">Yalnızca geliştiriciler teknik kılavuz yükleyebilir. En fazla 20 MB boyutunda PDF yükleyin.</p>
+            @if (!string.IsNullOrWhiteSpace(Model.Proje.TechnicalGuidePath))
+            {
+                <p class="dosya-link"><a href="@Model.Proje.TechnicalGuidePath" target="_blank" rel="noopener">Mevcut teknik kılavuzu indir</a></p>
+            }
+            <button type="submit">Teknik Kılavuzu Güncelle</button>
+        </form>
+        @if (Model.Talep?.Status == RequestStatus.Gelistirmede)
+        {
+            <form asp-action="GelistirmeTamamla" asp-route-id="@Model.Talep!.Id" method="post" class="tek-satir-form">
+                <button type="submit" class="buton-link">Geliştirmeyi Tamamlandı Olarak İşaretle</button>
+            </form>
+        }
+    </section>
+}
+
+@if (Model.Proje is not null && User.IsInRole(RoleConstants.Roles.BirimKullanicisi))
+{
+    <section class="form-alani">
+        <h2>Kullanım Kılavuzu Güncelle</h2>
+        <form asp-action="KilavuzGuncelle" asp-route-id="@Model.Talep!.Id" method="post" enctype="multipart/form-data">
+            <label for="kullanimKilavuzu">Kullanım Kılavuzu (PDF)</label>
+            <input type="file" id="kullanimKilavuzu" name="kullanimKilavuzuDosyasi" accept=".pdf" />
+            <p class="yardim-metin">Kullanım kılavuzları yalnızca talep sahibi birim tarafından yüklenebilir.</p>
+            @if (!string.IsNullOrWhiteSpace(Model.Proje.UserGuidePath))
+            {
+                <p class="dosya-link"><a href="@Model.Proje.UserGuidePath" target="_blank" rel="noopener">Mevcut kullanım kılavuzunu indir</a></p>
+            }
+            <button type="submit">Kullanım Kılavuzunu Güncelle</button>
+        </form>
     </section>
 }
 
@@ -162,50 +230,6 @@
 {
     <section class="form-alani">
         <a class="buton-link" asp-action="Degerlendir" asp-route-id="@Model.Talep!.Id">Başkan Kararı Ver</a>
-    </section>
-}
-
-@if (Model.Proje is not null && (User.IsInRole(RoleConstants.Roles.Yazilimci) || User.IsInRole(RoleConstants.Roles.Admin)))
-{
-    <section class="form-alani">
-        <h2>Geliştirici İşlemleri</h2>
-        <form asp-action="AlgoritmaGuncelle" asp-route-id="@Model.Talep!.Id" method="post">
-            <label for="algoritma">Algoritma Taslağı (A1, A2, A3 ...)</label>
-            <textarea id="algoritma" name="algoritma" rows="5">@Model.Proje.AlgorithmNotes</textarea>
-            <button type="submit">Algoritmayı Kaydet</button>
-        </form>
-        <form asp-action="KilavuzGuncelle" asp-route-id="@Model.Talep!.Id" method="post" enctype="multipart/form-data">
-            <div class="form-cift">
-                <div>
-                    <label for="teknikKilavuz">Teknik Kılavuz (PDF)</label>
-                    <input type="file" id="teknikKilavuz" name="teknikKilavuzDosyasi" accept=".pdf" />
-                    @if (!string.IsNullOrWhiteSpace(Model.Proje.TechnicalGuidePath))
-                    {
-                        <p class="dosya-link">
-                            <a href="@Model.Proje.TechnicalGuidePath" target="_blank" rel="noopener">Mevcut dosyayı indir</a>
-                        </p>
-                    }
-                </div>
-                <div>
-                    <label for="kullanimKilavuzu">Kullanım Kılavuzu (PDF)</label>
-                    <input type="file" id="kullanimKilavuzu" name="kullanimKilavuzuDosyasi" accept=".pdf" />
-                    @if (!string.IsNullOrWhiteSpace(Model.Proje.UserGuidePath))
-                    {
-                        <p class="dosya-link">
-                            <a href="@Model.Proje.UserGuidePath" target="_blank" rel="noopener">Mevcut dosyayı indir</a>
-                        </p>
-                    }
-                </div>
-            </div>
-            <p class="yardim-metin">En fazla 20 MB boyutunda PDF yükleyebilirsiniz.</p>
-            <button type="submit">Kılavuzları Kaydet</button>
-        </form>
-        @if (Model.Talep?.Status == RequestStatus.Gelistirmede)
-        {
-            <form asp-action="GelistirmeTamamla" asp-route-id="@Model.Talep!.Id" method="post">
-                <button type="submit" class="buton-link">Geliştirmeyi Tamamla</button>
-            </form>
-        }
     </section>
 }
 

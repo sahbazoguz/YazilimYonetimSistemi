@@ -30,6 +30,10 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<RequestDiscussionMessage> RequestDiscussionMessages => Set<RequestDiscussionMessage>();
 
+    public DbSet<Notification> Notifications => Set<Notification>();
+
+    public DbSet<ActionLog> ActionLogs => Set<ActionLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -150,6 +154,28 @@ public class ApplicationDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(m => m.SenderId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.Property(n => n.Title).IsRequired().HasMaxLength(150);
+            entity.Property(n => n.Message).IsRequired().HasMaxLength(500);
+            entity.Property(n => n.Link).HasMaxLength(200);
+            entity.HasOne(n => n.RecipientUser)
+                .WithMany()
+                .HasForeignKey(n => n.RecipientUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ActionLog>(entity =>
+        {
+            entity.Property(l => l.ActionType).IsRequired().HasMaxLength(100);
+            entity.Property(l => l.EntityType).IsRequired().HasMaxLength(100);
+            entity.Property(l => l.Description).HasMaxLength(500);
+            entity.HasOne(l => l.User)
+                .WithMany()
+                .HasForeignKey(l => l.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

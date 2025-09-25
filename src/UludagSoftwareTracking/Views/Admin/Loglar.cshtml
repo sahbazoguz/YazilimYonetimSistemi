@@ -1,0 +1,32 @@
+@model IReadOnlyList<ActionLog>
+@{
+    ViewData["Title"] = "İşlem Günlüğü";
+}
+
+<section class="form-alani">
+    <h1>İşlem Günlüğü</h1>
+    <p class="yardim-metin">Son 200 sistem kaydı listelenmiştir. Kayıtlar kullanıcı, işlem türü ve tarih bilgisi ile görüntülenir.</p>
+    <table class="tablo">
+        <thead>
+            <tr>
+                <th>Tarih</th>
+                <th>Kullanıcı</th>
+                <th>İşlem</th>
+                <th>Nesne</th>
+                <th>Açıklama</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var log in Model)
+        {
+            <tr>
+                <td>@log.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                <td>@(log.User?.FullName ?? log.User?.UserName ?? "-")</td>
+                <td>@log.ActionType</td>
+                <td>@log.EntityType @if (log.EntityId is not null) {<text>#@log.EntityId</text>}</td>
+                <td>@log.Description</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</section>

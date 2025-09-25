@@ -25,5 +25,6 @@ public static class RoleConstants
         public const string RequireBaskan = "RequireBaskan";
         public const string RequireYazilimci = "RequireYazilimci";
         public const string RequireAdmin = "RequireAdmin";
+        public const string RequireAlgorithmEditor = "RequireAlgorithmEditor";
     }
 }

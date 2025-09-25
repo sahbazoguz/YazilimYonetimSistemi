@@ -10,7 +10,7 @@ public static class SeedData
 {
     public static async Task EnsureSeedDataAsync(ApplicationDbContext context)
     {
-        await context.Database.EnsureCreatedAsync();
+        await context.Database.MigrateAsync();
 
         const string bilgiIslemDepartmentName = "Bilgi İşlem Daire Başkanlığı";
         const string muhendislikDepartmentName = "Mühendislik Fakültesi";
@@ -62,6 +62,10 @@ public static class SeedData
         const string adminUserName = "ULUDAG\\admin";
         const string birimYetkilisiUserName = "ULUDAG\\birimyetkilisi";
         const string birimKullanicisiUserName = "ULUDAG\\birimkullanici";
+        const string birimYetkilisiIibfUserName = "ULUDAG\\birimyetkilisi_iibf";
+        const string birimKullanicisiIibfUserName = "ULUDAG\\birimkullanici_iibf";
+        const string birimYetkilisiRektorlukUserName = "ULUDAG\\birimyetkilisi_rekt";
+        const string birimKullanicisiRektorlukUserName = "ULUDAG\\birimkullanici_rekt";
         const string degerlendiriciBirUserName = "ULUDAG\\deger1";
         const string degerlendiriciIkiUserName = "ULUDAG\\deger2";
         const string degerlendiriciUcUserName = "ULUDAG\\deger3";
@@ -75,6 +79,10 @@ public static class SeedData
             adminUserName,
             birimYetkilisiUserName,
             birimKullanicisiUserName,
+            birimYetkilisiIibfUserName,
+            birimKullanicisiIibfUserName,
+            birimYetkilisiRektorlukUserName,
+            birimKullanicisiRektorlukUserName,
             degerlendiriciBirUserName,
             degerlendiriciIkiUserName,
             degerlendiriciUcUserName,
@@ -116,6 +124,46 @@ public static class SeedData
                 PasswordHash = defaultPasswordHash,
                 Role = UserRole.BirimKullanicisi,
                 DepartmentId = departmentLookup[muhendislikDepartmentName]
+            };
+
+            var birimYetkilisiIibf = new UserProfile
+            {
+                UserName = birimYetkilisiIibfUserName,
+                FullName = "İİBF Birim Yetkilisi",
+                Email = "birim.yetkilisi.iibf@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
+                Role = UserRole.BirimYetkilisi,
+                DepartmentId = departmentLookup[iibfDepartmentName]
+            };
+
+            var birimKullanicisiIibf = new UserProfile
+            {
+                UserName = birimKullanicisiIibfUserName,
+                FullName = "İİBF Birim Kullanıcısı",
+                Email = "birim.kullanici.iibf@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
+                Role = UserRole.BirimKullanicisi,
+                DepartmentId = departmentLookup[iibfDepartmentName]
+            };
+
+            var birimYetkilisiRekt = new UserProfile
+            {
+                UserName = birimYetkilisiRektorlukUserName,
+                FullName = "Rektörlük Birim Yetkilisi",
+                Email = "birim.yetkilisi.rekt@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
+                Role = UserRole.BirimYetkilisi,
+                DepartmentId = departmentLookup[rektorlukDepartmentName]
+            };
+
+            var birimKullanicisiRekt = new UserProfile
+            {
+                UserName = birimKullanicisiRektorlukUserName,
+                FullName = "Rektörlük Birim Kullanıcısı",
+                Email = "birim.kullanici.rekt@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
+                Role = UserRole.BirimKullanicisi,
+                DepartmentId = departmentLookup[rektorlukDepartmentName]
             };
 
             var degerlendiriciBir = new UserProfile
@@ -192,6 +240,10 @@ public static class SeedData
                 admin,
                 birimYetkilisi,
                 birimKullanicisi,
+                birimYetkilisiIibf,
+                birimKullanicisiIibf,
+                birimYetkilisiRekt,
+                birimKullanicisiRekt,
                 degerlendiriciBir,
                 degerlendiriciIki,
                 degerlendiriciUc,

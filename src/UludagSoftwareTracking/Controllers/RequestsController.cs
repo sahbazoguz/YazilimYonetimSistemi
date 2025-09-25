@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -19,7 +20,6 @@ public class RequestsController : Controller
 {
     private readonly IRequestWorkflowService _requestWorkflowService;
     private readonly IUserContextService _userContextService;
-    private readonly IDepartmentService _departmentService;
     private readonly ISoftwareCatalogService _catalogService;
     private readonly IWebHostEnvironment _webHostEnvironment;
 
@@ -29,13 +29,11 @@ public class RequestsController : Controller
     public RequestsController(
         IRequestWorkflowService requestWorkflowService,
         IUserContextService userContextService,
-        IDepartmentService departmentService,
         ISoftwareCatalogService catalogService,
         IWebHostEnvironment webHostEnvironment)
     {
         _requestWorkflowService = requestWorkflowService;
         _userContextService = userContextService;
-        _departmentService = departmentService;
         _catalogService = catalogService;
         _webHostEnvironment = webHostEnvironment;
     }
@@ -102,10 +100,28 @@ public class RequestsController : Controller
     [Authorize(Policy = RoleConstants.Policies.RequireBirimKullanicisi)]
     public async Task<IActionResult> Olustur(CancellationToken cancellationToken)
     {
-        var departments = await _departmentService.GetDepartmentsAsync(cancellationToken);
+        var user = await _userContextService.GetCurrentUserAsync(cancellationToken);
+        if (user is null)
+        {
+            return Forbid();
+        }
+
+        if (user.Role == UserRole.BirimYetkilisi)
+        {
+            TempData["Warning"] = "Birim yetkilileri yeni talep oluşturamaz.";
+            return RedirectToAction(nameof(Birim));
+        }
+
+        if (user.DepartmentId is null)
+        {
+            TempData["Warning"] = "Birim bilgisi bulunamadı. Lütfen sistem yöneticisine başvurun.";
+            return RedirectToAction(nameof(Taleplerim));
+        }
+
         var viewModel = new RequestCreateViewModel
         {
-            Departments = departments
+            DepartmentId = user.DepartmentId.Value,
+            DepartmentName = user.Department?.Name ?? ""
         };
 
         return View(viewModel);
@@ -121,9 +137,23 @@ public class RequestsController : Controller
             return Forbid();
         }
 
+        if (user.Role == UserRole.BirimYetkilisi)
+        {
+            TempData["Warning"] = "Birim yetkilileri yeni talep oluşturamaz.";
+            return RedirectToAction(nameof(Birim));
+        }
+
+        if (user.DepartmentId is null)
+        {
+            TempData["Warning"] = "Birim bilgileriniz eksik olduğu için talep oluşturamazsınız.";
+            return RedirectToAction(nameof(Taleplerim));
+        }
+
+        viewModel.DepartmentId = user.DepartmentId.Value;
+        viewModel.DepartmentName = user.Department?.Name ?? string.Empty;
+
         if (!ModelState.IsValid)
         {
-            viewModel.Departments = await _departmentService.GetDepartmentsAsync(cancellationToken);
             return View(viewModel);
         }
 
@@ -138,6 +168,22 @@ public class RequestsController : Controller
         if (detail is null)
         {
             return NotFound();
+        }
+
+        var user = await _userContextService.GetCurrentUserAsync(cancellationToken);
+        if (user is not null)
+        {
+            if (user.Role == UserRole.BirimKullanicisi || user.Role == UserRole.BirimYetkilisi)
+            {
+                if (detail.Talep?.DepartmentId != user.DepartmentId)
+                {
+                    return Forbid();
+                }
+            }
+            else if (user.Role == UserRole.Personel || user.Role == UserRole.Ogrenci)
+            {
+                return Forbid();
+            }
         }
 
         return View(detail);
@@ -274,8 +320,8 @@ public class RequestsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = RoleConstants.Policies.RequireYazilimci)]
-    public async Task<IActionResult> AlgoritmaGuncelle(int id, string algoritma, CancellationToken cancellationToken)
+    [Authorize(Policy = RoleConstants.Policies.RequireAlgorithmEditor)]
+    public async Task<IActionResult> AlgoritmaGuncelle(int id, string algoritmaJson, CancellationToken cancellationToken)
     {
         var user = await _userContextService.GetCurrentUserAsync(cancellationToken);
         if (user is null)
@@ -285,7 +331,7 @@ public class RequestsController : Controller
 
         try
         {
-            await _requestWorkflowService.UpdateAlgorithmAsync(id, user.Id, algoritma, cancellationToken);
+            await _requestWorkflowService.UpdateAlgorithmAsync(id, user.Id, algoritmaJson ?? string.Empty, cancellationToken);
             TempData["Success"] = "Algoritma taslağı güncellendi";
         }
         catch (InvalidOperationException ex)
@@ -298,7 +344,6 @@ public class RequestsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = RoleConstants.Policies.RequireYazilimci)]
     public async Task<IActionResult> KilavuzGuncelle(int id, IFormFile? teknikKilavuzDosyasi, IFormFile? kullanimKilavuzuDosyasi, CancellationToken cancellationToken)
     {
         var user = await _userContextService.GetCurrentUserAsync(cancellationToken);
@@ -307,39 +352,81 @@ public class RequestsController : Controller
             return Forbid();
         }
 
-        if ((teknikKilavuzDosyasi is null || teknikKilavuzDosyasi.Length == 0) &&
-            (kullanimKilavuzuDosyasi is null || kullanimKilavuzuDosyasi.Length == 0))
+        var isDeveloper = user.Role == UserRole.Yazilimci;
+        var isUnitUser = user.Role == UserRole.BirimKullanicisi;
+
+        if (!isDeveloper && !isUnitUser)
+        {
+            TempData["Warning"] = "Kılavuz yükleme yetkiniz yok.";
+            return RedirectToAction(nameof(Detay), new { id });
+        }
+
+        var hasTechnical = teknikKilavuzDosyasi is not null && teknikKilavuzDosyasi.Length > 0;
+        var hasUserManual = kullanimKilavuzuDosyasi is not null && kullanimKilavuzuDosyasi.Length > 0;
+
+        if (!hasTechnical && !hasUserManual)
         {
             TempData["Warning"] = "Lütfen en az bir PDF dosyası seçin.";
             return RedirectToAction(nameof(Detay), new { id });
         }
 
-        string? teknikDosyaYolu = null;
-        string? kullanimDosyaYolu = null;
-
-        try
+        if (hasTechnical && !isDeveloper)
         {
-            teknikDosyaYolu = await KaydetKilavuzAsync(teknikKilavuzDosyasi, cancellationToken);
-            kullanimDosyaYolu = await KaydetKilavuzAsync(kullanimKilavuzuDosyasi, cancellationToken);
-        }
-        catch (InvalidOperationException ex)
-        {
-            SilKlavuzDosyasi(teknikDosyaYolu);
-            SilKlavuzDosyasi(kullanimDosyaYolu);
-            TempData["Warning"] = ex.Message;
+            TempData["Warning"] = "Teknik kılavuz yükleme yetkiniz yok.";
             return RedirectToAction(nameof(Detay), new { id });
         }
 
-        try
+        if (hasUserManual && !isUnitUser)
         {
-            await _requestWorkflowService.UpdateGuidesAsync(id, user.Id, teknikDosyaYolu, kullanimDosyaYolu, cancellationToken);
-            TempData["Success"] = "Kılavuz bilgileri kaydedildi";
+            TempData["Warning"] = "Kullanım kılavuzu yükleme yetkiniz yok.";
+            return RedirectToAction(nameof(Detay), new { id });
         }
-        catch (InvalidOperationException ex)
+
+        var successMessages = new List<string>();
+
+        if (hasTechnical)
         {
-            TempData["Warning"] = ex.Message;
-            SilKlavuzDosyasi(teknikDosyaYolu);
-            SilKlavuzDosyasi(kullanimDosyaYolu);
+            string? teknikDosyaYolu = null;
+            try
+            {
+                teknikDosyaYolu = await KaydetKilavuzAsync(teknikKilavuzDosyasi, cancellationToken);
+                if (!string.IsNullOrWhiteSpace(teknikDosyaYolu))
+                {
+                    await _requestWorkflowService.UpdateTechnicalGuideAsync(id, user.Id, teknikDosyaYolu, cancellationToken);
+                    successMessages.Add("Teknik kılavuz güncellendi");
+                }
+            }
+            catch (InvalidOperationException ex)
+            {
+                SilKlavuzDosyasi(teknikDosyaYolu);
+                TempData["Warning"] = ex.Message;
+                return RedirectToAction(nameof(Detay), new { id });
+            }
+        }
+
+        if (hasUserManual)
+        {
+            string? kullanimDosyaYolu = null;
+            try
+            {
+                kullanimDosyaYolu = await KaydetKilavuzAsync(kullanimKilavuzuDosyasi, cancellationToken);
+                if (!string.IsNullOrWhiteSpace(kullanimDosyaYolu))
+                {
+                    await _requestWorkflowService.UpdateUserGuideAsync(id, user.Id, kullanimDosyaYolu, cancellationToken);
+                    successMessages.Add("Kullanım kılavuzu güncellendi");
+                }
+            }
+            catch (InvalidOperationException ex)
+            {
+                SilKlavuzDosyasi(kullanimDosyaYolu);
+                TempData["Warning"] = ex.Message;
+                return RedirectToAction(nameof(Detay), new { id });
+            }
+        }
+
+        if (successMessages.Count > 0)
+        {
+            TempData["Success"] = string.Join(" ", successMessages);
         }
 
         return RedirectToAction(nameof(Detay), new { id });
