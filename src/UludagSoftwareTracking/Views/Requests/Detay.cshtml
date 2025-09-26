@@ -95,7 +95,7 @@
 }
 else if (kullaniciBirim && Model.Talep is not null)
 {
-    @{ var durum = Model.Talep.Status; }
+    var durum = Model.Talep.Status;
     <section>
         <h2>Talep Durumu</h2>
         <ul class="durum-zinciri">
