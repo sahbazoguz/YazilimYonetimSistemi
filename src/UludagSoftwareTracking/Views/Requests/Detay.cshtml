@@ -60,9 +60,11 @@
     </section>
 }
 
-var kullaniciBirim = User.IsInRole(RoleConstants.Roles.BirimKullanicisi) || User.IsInRole(RoleConstants.Roles.BirimYetkilisi);
+@{
+    var kullaniciBirim = User.IsInRole(RoleConstants.Roles.BirimKullanicisi) || User.IsInRole(RoleConstants.Roles.BirimYetkilisi);
+}
 
-if (Model.Degerlendirmeler.Any() && !kullaniciBirim)
+@if (Model.Degerlendirmeler.Any() && !kullaniciBirim)
 {
     <section>
         <h2>Teknik Değerlendirme</h2>
@@ -93,7 +95,7 @@ if (Model.Degerlendirmeler.Any() && !kullaniciBirim)
 }
 else if (kullaniciBirim && Model.Talep is not null)
 {
-    var durum = Model.Talep.Status;
+    @{ var durum = Model.Talep.Status; }
     <section>
         <h2>Talep Durumu</h2>
         <ul class="durum-zinciri">

@@ -1,6 +1,28 @@
 @model ProjectTeamAssignmentInputModel
+@using Microsoft.AspNetCore.Mvc.Rendering
 @{
     ViewData["Title"] = "Ekip Görevlendir";
+    var liderSecenekleri = Model.Adaylar
+        .Select(aday => new SelectListItem
+        {
+            Value = aday.Id.ToString(),
+            Text = $"{aday.AdSoyad} ({aday.Birim})"
+        })
+        .ToList();
+    var gelistiriciSecenekleri = Model.Adaylar
+        .Select(aday => new SelectListItem
+        {
+            Value = aday.Id.ToString(),
+            Text = $"{aday.AdSoyad} ({aday.Birim})"
+        })
+        .ToList();
+    var testerSecenekleri = Model.Adaylar
+        .Select(aday => new SelectListItem
+        {
+            Value = aday.Id.ToString(),
+            Text = $"{aday.AdSoyad} ({aday.Birim})"
+        })
+        .ToList();
 }
 
 <section class="form-alani">
@@ -15,37 +37,21 @@
 
         <div class="form-grup">
             <label asp-for="LeadUserId"></label>
-            <select asp-for="LeadUserId" class="form-control">
+            <select asp-for="LeadUserId" asp-items="liderSecenekleri" class="form-control">
                 <option value="">Lider seçin</option>
-                @foreach (var aday in Model.Adaylar)
-                {
-                    <option value="@aday.Id" @(Model.LeadUserId == aday.Id ? "selected" : string.Empty)>@aday.AdSoyad (@aday.Birim)</option>
-                }
             </select>
         </div>
 
         <div class="form-grup">
             <label asp-for="DeveloperIds"></label>
-            <select name="DeveloperIds" multiple size="6" class="form-control">
-                @foreach (var aday in Model.Adaylar)
-                {
-                    var selected = Model.DeveloperIds.Contains(aday.Id) ? "selected" : string.Empty;
-                    <option value="@aday.Id" @selected>@aday.AdSoyad (@aday.Birim)</option>
-                }
-            </select>
+            <select asp-for="DeveloperIds" asp-items="gelistiriciSecenekleri" multiple size="6" class="form-control"></select>
             <span asp-validation-for="DeveloperIds" class="metin-hata"></span>
             <p class="yardim-metin">Bir geliştirici seçmek zorunludur. Lider seçerseniz otomatik olarak geliştirici listesine eklenir.</p>
         </div>
 
         <div class="form-grup">
             <label asp-for="TesterIds"></label>
-            <select name="TesterIds" multiple size="6" class="form-control">
-                @foreach (var aday in Model.Adaylar)
-                {
-                    var selected = Model.TesterIds.Contains(aday.Id) ? "selected" : string.Empty;
-                    <option value="@aday.Id" @selected>@aday.AdSoyad (@aday.Birim)</option>
-                }
-            </select>
+            <select asp-for="TesterIds" asp-items="testerSecenekleri" multiple size="6" class="form-control"></select>
             <span asp-validation-for="TesterIds" class="metin-hata"></span>
             <p class="yardim-metin">Test ekibi isteğe bağlıdır. Çoklu seçim için Ctrl/Command tuşunu kullanın.</p>
         </div>

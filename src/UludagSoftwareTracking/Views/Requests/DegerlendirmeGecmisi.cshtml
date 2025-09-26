@@ -1,11 +1,17 @@
 @model AssessmentHistoryViewModel
 @using UludagSoftwareTracking.Models.Entities
+@using Microsoft.AspNetCore.Mvc.Rendering
 @{
     ViewData["Title"] = "Değerlendirme Geçmişim";
-    var kararlar = Enum.GetValues(typeof(AssessmentResult))
+    var kararSecenekleri = Enum.GetValues(typeof(AssessmentResult))
         .Cast<AssessmentResult>()
         .Where(k => k != AssessmentResult.Beklemede)
-        .ToArray();
+        .Select(k => new SelectListItem
+        {
+            Value = k.ToString(),
+            Text = k.ToString()
+        })
+        .ToList();
 }
 
 <section class="form-alani">
@@ -24,12 +30,8 @@
             </div>
             <div class="form-grup">
                 <label asp-for="Karar"></label>
-                <select asp-for="Karar" class="form-control">
+                <select asp-for="Karar" asp-items="kararSecenekleri" class="form-control">
                     <option value="">Tüm kararlar</option>
-                    @foreach (var karar in kararlar)
-                    {
-                        <option value="@karar" @(Model.Karar == karar ? "selected" : string.Empty)>@karar</option>
-                    }
                 </select>
             </div>
             <div class="form-grup filtre-butonu">
