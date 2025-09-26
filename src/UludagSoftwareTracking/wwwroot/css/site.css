@@ -308,6 +308,13 @@ body {
     margin: 0.25rem 0 0.75rem;
 }
 
+.kod-blok {
+    font-family: 'Fira Code', 'Source Code Pro', Consolas, 'Courier New', monospace;
+    background-color: #0f172a;
+    color: #f8fafc;
+    border-radius: 6px;
+}
+
 .metin-kutu {
     background: #f5f5f5;
     border-radius: 6px;
@@ -389,6 +396,55 @@ body {
     white-space: pre-wrap;
 }
 
+.akisma-kart-tur,
+.akisma-kart-rol {
+    display: inline-block;
+    margin: 0.4rem 0.4rem 0 0;
+    padding: 0.2rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background-color: var(--renk-acik-mavi, #e0f2ff);
+    color: var(--renk-mavi, #0b4f6c);
+}
+
+.akisma-kart-rol {
+    background-color: var(--renk-eflatun-acik, #efe3ff);
+    color: var(--renk-eflatun-koyu, #4a2f73);
+}
+
+.akisma-kart-dallar {
+    margin-top: 0.6rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+    color: var(--renk-gri-koyu, #3f3f3f);
+}
+
+.akisma-kart-dal strong {
+    margin-right: 0.25rem;
+}
+
+.akisma-ornek {
+    margin-top: 0.75rem;
+}
+
+.akisma-ornek summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.akisma-ornek pre {
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    background-color: #0f172a;
+    color: #f8fafc;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 0.85rem;
+}
+
 .akisma-ok {
     text-align: center;
     font-size: 1.25rem;
@@ -455,6 +511,15 @@ body {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+}
+
+.akisma-editor-tur,
+.akisma-editor-rol {
+    margin-top: 0.5rem;
+}
+
+.akisma-editor-rol {
+    font-style: italic;
 }
 
 .akisma-editor-baslik,

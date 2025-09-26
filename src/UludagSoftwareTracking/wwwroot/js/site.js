@@ -4,6 +4,44 @@
         return meta ? meta.getAttribute('content') || '' : '';
     }
 
+    const STEP_TYPE_NORMAL = 'Normal';
+    const STEP_TYPE_DECISION = 'Decision';
+
+    function normalizeStepType(type) {
+        if (typeof type === 'string' && type.toLowerCase() === STEP_TYPE_DECISION.toLowerCase()) {
+            return STEP_TYPE_DECISION;
+        }
+
+        return STEP_TYPE_NORMAL;
+    }
+
+    function cloneNextValue(next) {
+        if (next === undefined || next === null) {
+            return null;
+        }
+
+        try {
+            return JSON.parse(JSON.stringify(next));
+        } catch (error) {
+            console.warn('Karar dalları kopyalanamadı:', error);
+            return null;
+        }
+    }
+
+    function extractBranch(target, keys) {
+        if (!target || typeof target !== 'object') {
+            return null;
+        }
+
+        for (const key of keys) {
+            if (Object.prototype.hasOwnProperty.call(target, key) && target[key] !== undefined) {
+                return target[key];
+            }
+        }
+
+        return null;
+    }
+
     function parseSteps(json) {
         if (!json) {
             return [];
@@ -12,11 +50,28 @@
         try {
             const parsed = JSON.parse(json);
             if (Array.isArray(parsed)) {
-                return parsed.map((step) => ({
-                    Code: typeof step?.Code === 'string' ? step.Code : (typeof step?.code === 'string' ? step.code : ''),
-                    Title: typeof step?.Title === 'string' ? step.Title : (typeof step?.title === 'string' ? step.title : ''),
-                    Description: typeof step?.Description === 'string' ? step.Description : (typeof step?.description === 'string' ? step.description : '')
-                }));
+                return parsed.map((step, index) => {
+                    const type = normalizeStepType(step?.Type ?? step?.type);
+                    const role = typeof step?.Role === 'string'
+                        ? step.Role
+                        : (typeof step?.role === 'string' ? step.role : '');
+                    const description = typeof step?.Description === 'string'
+                        ? step.Description
+                        : (typeof step?.description === 'string' ? step.description : '');
+
+                    const nextValue = step?.Next ?? step?.next;
+
+                    return {
+                        Code: typeof step?.Code === 'string'
+                            ? step.Code
+                            : (typeof step?.code === 'string' ? step.code : `A${index + 1}`),
+                        Type: type,
+                        Title: typeof step?.Title === 'string' ? step.Title : (typeof step?.title === 'string' ? step.title : ''),
+                        Description: description,
+                        Role: role,
+                        Next: cloneNextValue(nextValue)
+                    };
+                });
             }
         } catch (error) {
             console.warn('Algoritma adımları çözümlenemedi:', error);
@@ -46,16 +101,57 @@
 
             const title = document.createElement('div');
             title.className = 'akisma-kart-baslik';
-            const codeText = step.Code || `A${index + 1}`;
-            const stepTitle = step.Title ? ` - ${step.Title}` : '';
+            const stepType = normalizeStepType(step.Type);
+            const codeText = step.Code && step.Code.length > 0 ? step.Code : `A${index + 1}`;
+            const stepTitle = step.Title && step.Title.trim().length > 0 ? ` - ${step.Title.trim()}` : '';
             title.textContent = `${codeText}${stepTitle}`;
             card.appendChild(title);
+
+            if (stepType === STEP_TYPE_DECISION) {
+                const typeBadge = document.createElement('span');
+                typeBadge.className = 'akisma-kart-tur';
+                typeBadge.textContent = 'Karar Noktası';
+                card.appendChild(typeBadge);
+            }
+
+            if (step.Role && step.Role.toString().trim().length > 0) {
+                const roleBadge = document.createElement('span');
+                roleBadge.className = 'akisma-kart-rol';
+                roleBadge.textContent = step.Role.toString().trim();
+                card.appendChild(roleBadge);
+            }
 
             if (step.Description) {
                 const desc = document.createElement('p');
                 desc.className = 'akisma-kart-icerik';
                 desc.textContent = step.Description;
                 card.appendChild(desc);
+            }
+
+            if (stepType === STEP_TYPE_DECISION && step.Next && typeof step.Next === 'object' && !Array.isArray(step.Next)) {
+                const branchesWrapper = document.createElement('div');
+                branchesWrapper.className = 'akisma-kart-dallar';
+
+                const yesValue = extractBranch(step.Next, ['Evet', 'evet']);
+                const noValue = extractBranch(step.Next, ['Hayır', 'Hayir', 'hayir']);
+
+                const yesItem = document.createElement('span');
+                yesItem.className = 'akisma-kart-dal';
+                const yesText = typeof yesValue === 'string' && yesValue.trim().length > 0
+                    ? yesValue.trim()
+                    : (yesValue ? JSON.stringify(yesValue) : '—');
+                yesItem.innerHTML = `<strong>Evet:</strong> ${yesText}`;
+                branchesWrapper.appendChild(yesItem);
+
+                const noItem = document.createElement('span');
+                noItem.className = 'akisma-kart-dal';
+                const noText = typeof noValue === 'string' && noValue.trim().length > 0
+                    ? noValue.trim()
+                    : (noValue ? JSON.stringify(noValue) : '—');
+                noItem.innerHTML = `<strong>Hayır:</strong> ${noText}`;
+                branchesWrapper.appendChild(noItem);
+
+                card.appendChild(branchesWrapper);
             }
 
             container.appendChild(card);
@@ -89,13 +185,60 @@
             });
         }
 
+        function refreshNextLinks() {
+            steps.forEach((step, index) => {
+                const normalizedType = normalizeStepType(step.Type);
+                step.Type = normalizedType;
+
+                if (normalizedType === STEP_TYPE_DECISION) {
+                    const currentNext = step.Next && typeof step.Next === 'object' && !Array.isArray(step.Next)
+                        ? step.Next
+                        : {};
+
+                    const yesValue = extractBranch(currentNext, ['Evet', 'evet']);
+                    const noValue = extractBranch(currentNext, ['Hayır', 'Hayir', 'hayir']);
+
+                    const yesBranch = cloneNextValue(yesValue);
+                    const noBranch = cloneNextValue(noValue);
+
+                    step.Next = {
+                        Evet: yesBranch !== null ? yesBranch : (index < steps.length - 1 ? steps[index + 1].Code : null),
+                        'Hayır': noBranch
+                    };
+                } else {
+                    if (step.Next === null || step.Next === undefined ||
+                        (typeof step.Next === 'string' && step.Next.trim().length === 0)) {
+                        step.Next = index < steps.length - 1 ? steps[index + 1].Code : null;
+                    } else if (typeof step.Next === 'string') {
+                        step.Next = step.Next.trim();
+                    } else if (typeof step.Next === 'object') {
+                        step.Next = cloneNextValue(step.Next);
+                    }
+                }
+            });
+        }
+
         function syncState() {
             refreshCodes();
-            const serialized = steps.map((step) => ({
-                Code: step.Code || '',
-                Title: (step.Title || '').trim(),
-                Description: (step.Description || '').trim()
-            }));
+            refreshNextLinks();
+            const serialized = steps.map((step) => {
+                const title = (step.Title || '').trim();
+                const description = (step.Description || '').trim();
+                const role = (step.Role || '').trim();
+                const type = normalizeStepType(step.Type);
+                step.Type = type;
+                step.Title = title;
+                step.Role = role;
+
+                return {
+                    Code: step.Code || '',
+                    Type: type,
+                    Title: title,
+                    Description: description,
+                    Role: role,
+                    Next: cloneNextValue(step.Next)
+                };
+            });
             hiddenInput.value = JSON.stringify(serialized);
             if (previewElement) {
                 previewElement.setAttribute('data-flow-source', hiddenInput.value);
@@ -106,6 +249,7 @@
         function renderList() {
             list.innerHTML = '';
             refreshCodes();
+            refreshNextLinks();
 
             if (steps.length === 0) {
                 const empty = document.createElement('li');
@@ -116,6 +260,9 @@
             }
 
             steps.forEach((step, index) => {
+                step.Type = normalizeStepType(step.Type);
+                step.Role = typeof step.Role === 'string' ? step.Role : '';
+
                 const item = document.createElement('li');
                 item.className = 'akisma-editor-adim';
                 item.setAttribute('draggable', 'true');
@@ -133,6 +280,26 @@
 
                 const fields = document.createElement('div');
                 fields.className = 'akisma-editor-icerik';
+
+                const typeSelect = document.createElement('select');
+                typeSelect.className = 'form-control akisma-editor-tur';
+                typeSelect.setAttribute('aria-label', 'Adım türü');
+                [
+                    { value: STEP_TYPE_NORMAL, label: 'Normal Adım' },
+                    { value: STEP_TYPE_DECISION, label: 'Karar Noktası' }
+                ].forEach((optionDef) => {
+                    const option = document.createElement('option');
+                    option.value = optionDef.value;
+                    option.textContent = optionDef.label;
+                    typeSelect.appendChild(option);
+                });
+                typeSelect.value = step.Type;
+                typeSelect.addEventListener('change', () => {
+                    step.Type = typeSelect.value;
+                    syncState();
+                    renderList();
+                });
+                fields.appendChild(typeSelect);
 
                 const titleInput = document.createElement('input');
                 titleInput.type = 'text';
@@ -155,6 +322,17 @@
                     syncState();
                 });
                 fields.appendChild(descriptionInput);
+
+                const roleInput = document.createElement('input');
+                roleInput.type = 'text';
+                roleInput.className = 'form-control akisma-editor-rol';
+                roleInput.placeholder = 'Rol / sorumlu kişi (isteğe bağlı)';
+                roleInput.value = step.Role || '';
+                roleInput.addEventListener('input', () => {
+                    step.Role = roleInput.value;
+                    syncState();
+                });
+                fields.appendChild(roleInput);
 
                 item.appendChild(fields);
 
@@ -209,7 +387,7 @@
             if (addButton.disabled) {
                 return;
             }
-            steps.push({ Title: '', Description: '' });
+            steps.push({ Title: '', Description: '', Role: '', Type: STEP_TYPE_NORMAL, Next: null });
             renderList();
             syncState();
         });

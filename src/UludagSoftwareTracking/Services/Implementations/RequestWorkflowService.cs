@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +16,9 @@ namespace UludagSoftwareTracking.Services.Implementations;
 
 public class RequestWorkflowService : IRequestWorkflowService
 {
+    private const string StepTypeNormal = "Normal";
+    private const string StepTypeDecision = "Decision";
+
     private static readonly AssessmentStage[] RequiredEvaluatorStages =
     {
         AssessmentStage.DegerlendiriciBir,
@@ -974,24 +978,14 @@ public class RequestWorkflowService : IRequestWorkflowService
 
         try
         {
-            var steps = JsonSerializer.Deserialize<List<AlgorithmStepModel>>(algorithmJson, AlgorithmSerializerOptions)
-                ?.Where(s => !string.IsNullOrWhiteSpace(s.Title))
-                .Select(s => new AlgorithmStepModel
-                {
-                    Title = s.Title.Trim(),
-                    Description = string.IsNullOrWhiteSpace(s.Description) ? null : s.Description.Trim(),
-                    Code = s.Code?.Trim() ?? string.Empty
-                })
-                .ToList() ?? new List<AlgorithmStepModel>();
+            var deserialized = JsonSerializer.Deserialize<List<AlgorithmStepModel>>(algorithmJson, AlgorithmSerializerOptions)
+                ?? new List<AlgorithmStepModel>();
+
+            var steps = NormalizeAlgorithmSteps(deserialized);
 
             if (steps.Count == 0)
             {
                 return null;
-            }
-
-            for (var i = 0; i < steps.Count; i++)
-            {
-                steps[i].Code = BuildStepCode(i);
             }
 
             return JsonSerializer.Serialize(steps, AlgorithmSerializerOptions);
@@ -1011,20 +1005,10 @@ public class RequestWorkflowService : IRequestWorkflowService
 
         try
         {
-            var steps = JsonSerializer.Deserialize<List<AlgorithmStepModel>>(algorithmNotes, AlgorithmSerializerOptions)
-                ?.Where(s => !string.IsNullOrWhiteSpace(s.Title))
-                .Select(s => new AlgorithmStepModel
-                {
-                    Title = s.Title.Trim(),
-                    Description = string.IsNullOrWhiteSpace(s.Description) ? null : s.Description.Trim(),
-                    Code = s.Code?.Trim() ?? string.Empty
-                })
-                .ToList() ?? new List<AlgorithmStepModel>();
+            var deserialized = JsonSerializer.Deserialize<List<AlgorithmStepModel>>(algorithmNotes, AlgorithmSerializerOptions)
+                ?? new List<AlgorithmStepModel>();
 
-            for (var i = 0; i < steps.Count; i++)
-            {
-                steps[i].Code = BuildStepCode(i);
-            }
+            var steps = NormalizeAlgorithmSteps(deserialized);
 
             return JsonSerializer.Serialize(steps, AlgorithmSerializerOptions);
         }
@@ -1036,10 +1020,159 @@ public class RequestWorkflowService : IRequestWorkflowService
                 {
                     Title = "Akış",
                     Description = algorithmNotes!.Trim(),
-                    Code = BuildStepCode(0)
+                    Code = BuildStepCode(0),
+                    Type = StepTypeNormal
                 }
             };
+
+            ApplyStepDefaults(fallback);
+
             return JsonSerializer.Serialize(fallback, AlgorithmSerializerOptions);
+        }
+    }
+
+    private static List<AlgorithmStepModel> NormalizeAlgorithmSteps(IEnumerable<AlgorithmStepModel> steps)
+    {
+        var normalized = steps
+            .Where(s => !string.IsNullOrWhiteSpace(s.Title))
+            .Select(s => new AlgorithmStepModel
+            {
+                Title = s.Title!.Trim(),
+                Description = string.IsNullOrWhiteSpace(s.Description) ? null : s.Description.Trim(),
+                Code = s.Code?.Trim() ?? string.Empty,
+                Type = NormalizeStepType(s.Type),
+                Role = NormalizeRole(s.Role),
+                Next = NormalizeNext(s.Next)
+            })
+            .ToList();
+
+        ApplyStepDefaults(normalized);
+
+        return normalized;
+    }
+
+    private static string NormalizeStepType(string? type)
+    {
+        return string.Equals(type, StepTypeDecision, StringComparison.OrdinalIgnoreCase)
+            ? StepTypeDecision
+            : StepTypeNormal;
+    }
+
+    private static string? NormalizeRole(string? role)
+    {
+        if (string.IsNullOrWhiteSpace(role))
+        {
+            return null;
+        }
+
+        var trimmed = role.Trim();
+        return trimmed.Length <= 100 ? trimmed : trimmed[..100];
+    }
+
+    private static JsonNode? NormalizeNext(JsonNode? next)
+    {
+        if (next is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonNode.Parse(next.ToJsonString());
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static void ApplyStepDefaults(IList<AlgorithmStepModel> steps)
+    {
+        for (var i = 0; i < steps.Count; i++)
+        {
+            steps[i].Code = BuildStepCode(i);
+        }
+
+        for (var i = 0; i < steps.Count; i++)
+        {
+            if (string.Equals(steps[i].Type, StepTypeDecision, StringComparison.OrdinalIgnoreCase))
+            {
+                var nextStepCode = i < steps.Count - 1 ? steps[i + 1].Code : null;
+                steps[i].Next = NormalizeDecisionNext(steps[i].Next, nextStepCode);
+            }
+            else
+            {
+                if (steps[i].Next is null ||
+                    (steps[i].Next is JsonValue value &&
+                     (value.GetValueKind() == JsonValueKind.Null || string.IsNullOrWhiteSpace(value.ToString()))))
+                {
+                    steps[i].Next = i < steps.Count - 1
+                        ? JsonValue.Create<string?>(steps[i + 1].Code)
+                        : null;
+                }
+            }
+        }
+    }
+
+    private static JsonNode NormalizeDecisionNext(JsonNode? next, string? defaultYesTarget)
+    {
+        var result = new JsonObject
+        {
+            ["Evet"] = JsonValue.Create(defaultYesTarget),
+            ["Hayır"] = null
+        };
+
+        if (next is JsonObject obj)
+        {
+            if (obj.TryGetPropertyValue("Evet", out var yesNode))
+            {
+                result["Evet"] = NormalizeBranchValue(yesNode);
+            }
+
+            if (obj.TryGetPropertyValue("Hayır", out var noNode))
+            {
+                result["Hayır"] = NormalizeBranchValue(noNode);
+            }
+            else if (obj.TryGetPropertyValue("Hayir", out var noLatinNode))
+            {
+                result["Hayır"] = NormalizeBranchValue(noLatinNode);
+            }
+
+            return result;
+        }
+
+        if (next is JsonValue value)
+        {
+            result["Evet"] = NormalizeBranchValue(value);
+        }
+
+        return result;
+    }
+
+    private static JsonNode? NormalizeBranchValue(JsonNode? node)
+    {
+        if (node is null)
+        {
+            return null;
+        }
+
+        if (node is JsonValue value)
+        {
+            if (value.GetValueKind() == JsonValueKind.Null)
+            {
+                return null;
+            }
+
+            return JsonValue.Create(value.ToString());
+        }
+
+        try
+        {
+            return JsonNode.Parse(node.ToJsonString());
+        }
+        catch (JsonException)
+        {
+            return null;
         }
     }
 

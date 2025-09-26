@@ -178,6 +178,62 @@ else if (kullaniciBirim && Model.Talep is not null)
 
 @if (Model.Proje is not null && (User.IsInRole(RoleConstants.Roles.Yazilimci) || User.IsInRole(RoleConstants.Roles.BirimKullanicisi)))
 {
+    var algorithmExampleJson = """
+[
+  {
+    "Code": "A1",
+    "Type": "Normal",
+    "Title": "Talebin Alınması",
+    "Description": "Birim kullanıcısı talep formunu doldurur.",
+    "Role": "Birim Kullanıcısı",
+    "Next": "A2"
+  },
+  {
+    "Code": "A2",
+    "Type": "Decision",
+    "Title": "Birim Yetkilisi Onayı",
+    "Description": "Yetkili talebi onaylıyor mu?",
+    "Role": "Birim Yetkilisi",
+    "Next": {
+      "Evet": "A3",
+      "Hayır": "A5"
+    }
+  },
+  {
+    "Code": "A3",
+    "Type": "Normal",
+    "Title": "Teknik Değerlendirme",
+    "Description": "Değerlendirme ekibi rapor hazırlar.",
+    "Role": "Değerlendirme Ekibi",
+    "Next": "A4"
+  },
+  {
+    "Code": "A4",
+    "Type": "Normal",
+    "Title": "Başkan Onayı",
+    "Description": "Başkan nihai kararı verir.",
+    "Role": "Değerlendirme Başkanı",
+    "Next": "A6"
+  },
+  {
+    "Code": "A5",
+    "Type": "Normal",
+    "Title": "Talep Kapanışı",
+    "Description": "Reddedilen talepler kapatılır ve bildirilir.",
+    "Role": "Birim Yetkilisi",
+    "Next": null
+  },
+  {
+    "Code": "A6",
+    "Type": "Normal",
+    "Title": "Geliştirme Başlangıcı",
+    "Description": "Onaylanan talep yazılım ekibine aktarılır.",
+    "Role": "Yazılımcı",
+    "Next": null
+  }
+]
+""";
+
     <section class="form-alani">
         <h2>Algoritma Tasarım Editörü</h2>
         <form asp-action="AlgoritmaGuncelle" asp-route-id="@Model.Talep!.Id" method="post" data-flow-form data-flow-target="#algoritma-onizleme-@Model.Talep!.Id">
@@ -187,7 +243,11 @@ else if (kullaniciBirim && Model.Talep is not null)
                 @{ var algoritmaKilitli = ViewData["AlgoritmaButonPasif"] as bool? ?? false; }
                 <button type="button" class="buton-link" data-flow-add @(algoritmaKilitli ? "disabled=\"disabled\"" : string.Empty)>Yeni Adım Ekle</button>
             </div>
-            <p class="yardim-metin">Adımları sürükleyip bırakarak sıralayın, her adım için başlık ve açıklama girin.</p>
+            <p class="yardim-metin">Adımları sürükleyip bırakarak sıralayın, her adım için başlık, açıklama ve gerekirse rol bilgisini girin.</p>
+            <details class="akisma-ornek">
+                <summary>Örnek karar akışı JSON'unu görüntüle</summary>
+                <pre class="kod-blok">@Html.Raw(algorithmExampleJson)</pre>
+            </details>
             @if (algoritmaKilitli)
             {
                 <p class="bilgi-kutu uyari">Algoritma düzenleme yetkisi başkan onayı sonrası aktif olur.</p>
