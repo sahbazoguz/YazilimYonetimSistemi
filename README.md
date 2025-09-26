@@ -1,10 +1,10 @@
 # Yazılım Yönetim Sistemi
 
-Uludağ Üniversitesi için geliştirilen .NET 8 tabanlı Yazılım Takip Sistemi; yazılım kataloğunun kamuya açık paylaşılması, birim taleplerinin yönetilmesi ve teknik değerlendirme ile yazılım geliştirme süreçlerinin izlenmesini sağlar.
+Uludağ Üniversitesi için geliştirilen .NET 9 tabanlı Yazılım Takip Sistemi; yazılım kataloğunun kamuya açık paylaşılması, birim taleplerinin yönetilmesi ve teknik değerlendirme ile yazılım geliştirme süreçlerinin izlenmesini sağlar.
 
 ## Başlangıç
 
-1. `UludagSoftwareTracking.sln` çözüm dosyasını Visual Studio 2022 17.8+ veya .NET 8 SDK içeren ortamda açın.
+1. `UludagSoftwareTracking.sln` çözüm dosyasını Visual Studio 2022 17.12+ veya .NET 9 SDK (önizleme) içeren ortamda açın.
 2. `appsettings.json` içindeki `DefaultConnection` değerini kurumunuzdaki SQL Server bağlantısına göre güncelleyin.
 3. Çözümü çalıştırmadan önce `dotnet restore` komutunu çalıştırarak NuGet paketlerini indirin.
 4. İlk çalıştırmada `SeedData` sınıfı örnek roller, kullanıcılar ve katalog verileri oluşturur.
