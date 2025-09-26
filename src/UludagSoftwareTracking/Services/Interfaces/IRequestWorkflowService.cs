@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,6 +23,8 @@ public interface IRequestWorkflowService
 
     Task<RequestDetailViewModel?> GetDetailAsync(int id, CancellationToken cancellationToken = default);
 
+    Task<ProjectTeamAssignmentInputModel> GetProjectTeamAsync(int requestId, CancellationToken cancellationToken = default);
+
     Task<int> CreateRequestAsync(RequestCreateViewModel model, int userId, CancellationToken cancellationToken = default);
 
     Task ApproveAsync(int requestId, int approverUserId, string? notes, CancellationToken cancellationToken = default);
@@ -41,4 +44,13 @@ public interface IRequestWorkflowService
     Task ConfirmTestingAsync(int requestId, int userId, CancellationToken cancellationToken = default);
 
     Task AddDiscussionMessageAsync(int requestId, int userId, string message, CancellationToken cancellationToken = default);
+
+    Task UpdateProjectTeamAsync(ProjectTeamAssignmentInputModel model, int actingUserId, CancellationToken cancellationToken = default);
+
+    Task<AssessmentHistoryViewModel> GetAssessmentHistoryAsync(
+        int assessorUserId,
+        DateTime? baslangic,
+        DateTime? bitis,
+        AssessmentResult? karar,
+        CancellationToken cancellationToken = default);
 }

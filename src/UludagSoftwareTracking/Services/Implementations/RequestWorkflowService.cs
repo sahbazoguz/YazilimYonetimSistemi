@@ -121,6 +121,8 @@ public class RequestWorkflowService : IRequestWorkflowService
             .Include(r => r.Project)
             .ThenInclude(p => p!.Assignments)
             .ThenInclude(a => a.User)
+            .Include(r => r.Project)
+            .ThenInclude(p => p!.LeadUser)
             .Include(r => r.DiscussionMessages)
             .ThenInclude(m => m.Sender)
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
@@ -149,6 +151,62 @@ public class RequestWorkflowService : IRequestWorkflowService
                 .OrderBy(m => m.PostedOn)
                 .ToArray(),
             AlgorithmJson = BuildAlgorithmJsonForView(request.Project?.AlgorithmNotes)
+        };
+    }
+
+    public async Task<ProjectTeamAssignmentInputModel> GetProjectTeamAsync(int requestId, CancellationToken cancellationToken = default)
+    {
+        var request = await _context.SoftwareRequests
+            .Include(r => r.Project)
+            .ThenInclude(p => p!.Assignments)
+            .ThenInclude(a => a.User)
+            .FirstOrDefaultAsync(r => r.Id == requestId, cancellationToken)
+            ?? throw new InvalidOperationException("Talep bulunamadı");
+
+        if (request.Project is null)
+        {
+            throw new InvalidOperationException("Başkan onayı verilmeden ekip görevlendirilemez.");
+        }
+
+        if (request.Status != RequestStatus.Gelistirmede && request.Status != RequestStatus.Tamamlandi)
+        {
+            throw new InvalidOperationException("Ekip görevlendirmesi yalnızca başkan onayı sonrası geliştirme aşamasında yapılabilir.");
+        }
+
+        var candidateUsers = await _context.UserProfiles
+            .Include(u => u.Department)
+            .Where(u => u.IsActive && u.Role == UserRole.Yazilimci)
+            .OrderBy(u => u.FullName ?? u.UserName)
+            .Select(u => new SelectableUserViewModel
+            {
+                Id = u.Id,
+                AdSoyad = u.FullName ?? u.UserName ?? $"Kullanıcı {u.Id}",
+                Birim = u.Department != null ? u.Department.Name : "-"
+            })
+            .ToListAsync(cancellationToken);
+
+        var developerIds = request.Project.Assignments
+            .Where(a => a.AssignedRole == RoleConstants.Roles.Yazilimci || a.AssignedRole == RoleConstants.Roles.EkipLideri)
+            .Select(a => a.UserId)
+            .Where(id => id != 0)
+            .Distinct()
+            .ToList();
+
+        var testerIds = request.Project.Assignments
+            .Where(a => a.AssignedRole == RoleConstants.Roles.TestYazilimcisi)
+            .Select(a => a.UserId)
+            .Where(id => id != 0)
+            .Distinct()
+            .ToList();
+
+        return new ProjectTeamAssignmentInputModel
+        {
+            RequestId = request.Id,
+            TalepBasligi = request.Title,
+            LeadUserId = request.Project.LeadUserId,
+            DeveloperIds = developerIds,
+            TesterIds = testerIds,
+            Adaylar = candidateUsers
         };
     }
 
@@ -404,6 +462,11 @@ public class RequestWorkflowService : IRequestWorkflowService
         if (request.Project is null)
         {
             throw new InvalidOperationException("Proje oluşturulmadan algoritma planı güncellenemez.");
+        }
+
+        if (request.Status != RequestStatus.Gelistirmede && request.Status != RequestStatus.Tamamlandi && request.Status != RequestStatus.Kapandi)
+        {
+            throw new InvalidOperationException("Başkan onayı tamamlanmadan algoritma planı güncellenemez.");
         }
 
         var user = await GetUserAsync(userId, cancellationToken);
@@ -687,6 +750,190 @@ public class RequestWorkflowService : IRequestWorkflowService
             logOzet, cancellationToken);
     }
 
+    public async Task UpdateProjectTeamAsync(ProjectTeamAssignmentInputModel model, int actingUserId, CancellationToken cancellationToken = default)
+    {
+        var request = await _context.SoftwareRequests
+            .Include(r => r.Project)
+            .ThenInclude(p => p!.Assignments)
+            .FirstOrDefaultAsync(r => r.Id == model.RequestId, cancellationToken)
+            ?? throw new InvalidOperationException("Talep bulunamadı");
+
+        if (request.Project is null)
+        {
+            throw new InvalidOperationException("Başkan onayı verilmeden ekip görevlendirilemez.");
+        }
+
+        if (request.Status != RequestStatus.Gelistirmede && request.Status != RequestStatus.Tamamlandi)
+        {
+            throw new InvalidOperationException("Talep geliştirme aşamasına geçmeden ekip atanamaz.");
+        }
+
+        var developerIds = model.DeveloperIds?
+            .Where(id => id > 0)
+            .Distinct()
+            .ToList() ?? new List<int>();
+
+        if (model.LeadUserId.HasValue && !developerIds.Contains(model.LeadUserId.Value))
+        {
+            developerIds.Insert(0, model.LeadUserId.Value);
+        }
+
+        if (developerIds.Count == 0)
+        {
+            throw new InvalidOperationException("En az bir geliştirici seçmelisiniz.");
+        }
+
+        var testerIds = model.TesterIds?
+            .Where(id => id > 0)
+            .Distinct()
+            .ToList() ?? new List<int>();
+
+        var selectedIds = developerIds.Concat(testerIds).Distinct().ToArray();
+        var selectedUsers = await _context.UserProfiles
+            .Where(u => u.IsActive && u.Role == UserRole.Yazilimci && selectedIds.Contains(u.Id))
+            .ToListAsync(cancellationToken);
+
+        if (!developerIds.All(id => selectedUsers.Any(u => u.Id == id)))
+        {
+            throw new InvalidOperationException("Seçilen geliştirici bilgileri geçersiz.");
+        }
+
+        testerIds = testerIds
+            .Where(id => selectedUsers.Any(u => u.Id == id))
+            .ToList();
+
+        var relevantAssignments = request.Project.Assignments
+            .Where(a => a.AssignedRole == RoleConstants.Roles.Yazilimci
+                        || a.AssignedRole == RoleConstants.Roles.EkipLideri
+                        || a.AssignedRole == RoleConstants.Roles.TestYazilimcisi)
+            .ToList();
+
+        if (relevantAssignments.Count > 0)
+        {
+            _context.ProjectAssignments.RemoveRange(relevantAssignments);
+            foreach (var assignment in relevantAssignments)
+            {
+                request.Project.Assignments.Remove(assignment);
+            }
+        }
+
+        var now = DateTime.UtcNow;
+
+        foreach (var developerId in developerIds)
+        {
+            var assignment = new ProjectAssignment
+            {
+                ProjectId = request.Project.Id,
+                UserId = developerId,
+                AssignedRole = model.LeadUserId == developerId ? RoleConstants.Roles.EkipLideri : RoleConstants.Roles.Yazilimci,
+                AssignedOn = now,
+                CompletionPercent = 0,
+                Project = request.Project
+            };
+
+            request.Project.Assignments.Add(assignment);
+            await _context.ProjectAssignments.AddAsync(assignment, cancellationToken);
+        }
+
+        foreach (var testerId in testerIds)
+        {
+            var assignment = new ProjectAssignment
+            {
+                ProjectId = request.Project.Id,
+                UserId = testerId,
+                AssignedRole = RoleConstants.Roles.TestYazilimcisi,
+                AssignedOn = now,
+                CompletionPercent = 0,
+                Project = request.Project
+            };
+
+            request.Project.Assignments.Add(assignment);
+            await _context.ProjectAssignments.AddAsync(assignment, cancellationToken);
+        }
+
+        request.Project.LeadUserId = model.LeadUserId;
+        request.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        var assignedUsers = selectedUsers;
+
+        var notifiedUsers = assignedUsers
+            .Where(u => u.Id != actingUserId)
+            .ToList();
+
+        var developerNames = assignedUsers
+            .Where(u => developerIds.Contains(u.Id))
+            .Select(u => u.FullName ?? u.UserName ?? u.Id.ToString())
+            .ToArray();
+
+        await _auditLogService.RecordAsync(actingUserId, "Proje Görevlendirme", nameof(Project), request.Project.Id,
+            $"Lider: {(model.LeadUserId.HasValue ? model.LeadUserId.Value.ToString() : "-")}, Geliştiriciler: {string.Join(", ", developerNames)}", cancellationToken);
+
+        if (notifiedUsers.Count > 0)
+        {
+            await _notificationService.SendAsync(notifiedUsers,
+                "Yeni Proje Görevlendirmesi",
+                $"\"{request.Title}\" talebi için görev atandınız.",
+                $"/Requests/Detay/{request.Id}",
+                cancellationToken);
+        }
+    }
+
+    public async Task<AssessmentHistoryViewModel> GetAssessmentHistoryAsync(
+        int assessorUserId,
+        DateTime? baslangic,
+        DateTime? bitis,
+        AssessmentResult? karar,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _context.RequestAssessments
+            .Include(a => a.Request)
+            .Where(a => a.AssessedByUserId == assessorUserId && a.AssessedOn != null && a.Result != AssessmentResult.Beklemede);
+
+        if (baslangic.HasValue)
+        {
+            var start = baslangic.Value.Date;
+            query = query.Where(a => a.AssessedOn >= start);
+        }
+
+        if (bitis.HasValue)
+        {
+            var end = bitis.Value.Date.AddDays(1);
+            query = query.Where(a => a.AssessedOn < end);
+        }
+
+        if (karar.HasValue)
+        {
+            query = query.Where(a => a.Result == karar.Value);
+        }
+
+        var assessments = await query
+            .OrderByDescending(a => a.AssessedOn)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        var items = assessments
+            .Select(a => new AssessmentHistoryItemViewModel
+            {
+                AssessmentId = a.Id,
+                RequestId = a.RequestId,
+                TalepBasligi = a.Request?.Title ?? $"Talep #{a.RequestId}",
+                Tarih = a.AssessedOn,
+                Sonuc = a.Result,
+                KisaGerekce = string.IsNullOrWhiteSpace(a.Notes) ? null : a.Notes.Length > 120 ? a.Notes[..120] + "…" : a.Notes
+            })
+            .ToArray();
+
+        return new AssessmentHistoryViewModel
+        {
+            Baslangic = baslangic,
+            Bitis = bitis,
+            Karar = karar,
+            Kayitlar = items
+        };
+    }
+
     private static bool IsDeveloper(UserProfile user) => user.Role == UserRole.Yazilimci;
 
     private bool IsDiscussionParticipant(UserProfile user, SoftwareRequest request)
@@ -716,6 +963,8 @@ public class RequestWorkflowService : IRequestWorkflowService
             ?? throw new InvalidOperationException("Kullanıcı bulunamadı");
     }
 
+    private static string BuildStepCode(int index) => $"A{index + 1}";
+
     private static string? NormalizeAlgorithmJson(string algorithmJson)
     {
         if (string.IsNullOrWhiteSpace(algorithmJson))
@@ -730,13 +979,19 @@ public class RequestWorkflowService : IRequestWorkflowService
                 .Select(s => new AlgorithmStepModel
                 {
                     Title = s.Title.Trim(),
-                    Description = string.IsNullOrWhiteSpace(s.Description) ? null : s.Description.Trim()
+                    Description = string.IsNullOrWhiteSpace(s.Description) ? null : s.Description.Trim(),
+                    Code = s.Code?.Trim() ?? string.Empty
                 })
                 .ToList() ?? new List<AlgorithmStepModel>();
 
             if (steps.Count == 0)
             {
                 return null;
+            }
+
+            for (var i = 0; i < steps.Count; i++)
+            {
+                steps[i].Code = BuildStepCode(i);
             }
 
             return JsonSerializer.Serialize(steps, AlgorithmSerializerOptions);
@@ -761,9 +1016,15 @@ public class RequestWorkflowService : IRequestWorkflowService
                 .Select(s => new AlgorithmStepModel
                 {
                     Title = s.Title.Trim(),
-                    Description = string.IsNullOrWhiteSpace(s.Description) ? null : s.Description.Trim()
+                    Description = string.IsNullOrWhiteSpace(s.Description) ? null : s.Description.Trim(),
+                    Code = s.Code?.Trim() ?? string.Empty
                 })
                 .ToList() ?? new List<AlgorithmStepModel>();
+
+            for (var i = 0; i < steps.Count; i++)
+            {
+                steps[i].Code = BuildStepCode(i);
+            }
 
             return JsonSerializer.Serialize(steps, AlgorithmSerializerOptions);
         }
@@ -771,7 +1032,12 @@ public class RequestWorkflowService : IRequestWorkflowService
         {
             var fallback = new List<AlgorithmStepModel>
             {
-                new() { Title = "Akış", Description = algorithmNotes!.Trim() }
+                new()
+                {
+                    Title = "Akış",
+                    Description = algorithmNotes!.Trim(),
+                    Code = BuildStepCode(0)
+                }
             };
             return JsonSerializer.Serialize(fallback, AlgorithmSerializerOptions);
         }
@@ -793,8 +1059,15 @@ public class RequestWorkflowService : IRequestWorkflowService
 
     private async Task<List<UserProfile>> GetProjectDevelopersAsync(int projectId, CancellationToken cancellationToken)
     {
+        var developerRoles = new[]
+        {
+            RoleConstants.Roles.Yazilimci,
+            RoleConstants.Roles.EkipLideri,
+            RoleConstants.Roles.TestYazilimcisi
+        };
+
         var developers = await _context.ProjectAssignments
-            .Where(a => a.ProjectId == projectId)
+            .Where(a => a.ProjectId == projectId && developerRoles.Contains(a.AssignedRole))
             .Include(a => a.User)
             .Select(a => a.User)
             .Where(u => u != null && u.IsActive)
@@ -870,30 +1143,6 @@ public class RequestWorkflowService : IRequestWorkflowService
 
         await _context.Projects.AddAsync(project, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
-
-        var developer = await _context.UserProfiles
-            .Where(u => u.Role == UserRole.Yazilimci)
-            .OrderBy(u => u.Id)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (developer is not null)
-        {
-            project.LeadUserId = developer.Id;
-            project.LeadUser = developer;
-
-            var assignment = new ProjectAssignment
-            {
-                ProjectId = project.Id,
-                UserId = developer.Id,
-                AssignedRole = RoleConstants.Roles.Yazilimci,
-                CompletionPercent = 0,
-                Project = project
-            };
-
-            await _context.ProjectAssignments.AddAsync(assignment, cancellationToken);
-            await _context.SaveChangesAsync(cancellationToken);
-            project.Assignments.Add(assignment);
-        }
 
         request.Project = project;
     }

@@ -1,0 +1,76 @@
+@model AssessmentHistoryViewModel
+@using UludagSoftwareTracking.Models.Entities
+@{
+    ViewData["Title"] = "Değerlendirme Geçmişim";
+    var kararlar = Enum.GetValues(typeof(AssessmentResult))
+        .Cast<AssessmentResult>()
+        .Where(k => k != AssessmentResult.Beklemede)
+        .ToArray();
+}
+
+<section class="form-alani">
+    <h1>Değerlendirme Geçmişim</h1>
+    <p class="yardim-metin">Yaptığınız teknik değerlendirmeleri tarih aralığına ve karara göre filtreleyebilirsiniz.</p>
+
+    <form method="get" class="filtre-formu">
+        <div class="filtre-satiri">
+            <div class="form-grup">
+                <label asp-for="Baslangic"></label>
+                <input asp-for="Baslangic" class="form-control" />
+            </div>
+            <div class="form-grup">
+                <label asp-for="Bitis"></label>
+                <input asp-for="Bitis" class="form-control" />
+            </div>
+            <div class="form-grup">
+                <label asp-for="Karar"></label>
+                <select asp-for="Karar" class="form-control">
+                    <option value="">Tüm kararlar</option>
+                    @foreach (var karar in kararlar)
+                    {
+                        <option value="@karar" @(Model.Karar == karar ? "selected" : string.Empty)>@karar</option>
+                    }
+                </select>
+            </div>
+            <div class="form-grup filtre-butonu">
+                <button type="submit">Filtrele</button>
+            </div>
+        </div>
+    </form>
+</section>
+
+<section>
+    <h2>Geçmiş Kayıtlar</h2>
+    @if (!Model.Kayitlar.Any())
+    {
+        <p class="yardim-metin">Seçilen kriterlere uygun değerlendirme kaydı bulunamadı.</p>
+    }
+    else
+    {
+        <table class="tablo">
+            <thead>
+                <tr>
+                    <th>Tarih</th>
+                    <th>Talep No</th>
+                    <th>Talep Başlığı</th>
+                    <th>Karar</th>
+                    <th>Kısa Gerekçe</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var kayit in Model.Kayitlar)
+                {
+                    <tr>
+                        <td>@(kayit.Tarih?.ToLocalTime().ToString("dd.MM.yyyy") ?? "-")</td>
+                        <td>@kayit.RequestId</td>
+                        <td>@kayit.TalepBasligi</td>
+                        <td>@kayit.Sonuc</td>
+                        <td>@(string.IsNullOrWhiteSpace(kayit.KisaGerekce) ? "-" : kayit.KisaGerekce)</td>
+                        <td><a class="buton-link" asp-action="Detay" asp-route-id="@kayit.RequestId">Detaya Git</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>

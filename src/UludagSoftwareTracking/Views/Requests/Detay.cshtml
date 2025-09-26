@@ -60,7 +60,9 @@
     </section>
 }
 
-@if (Model.Degerlendirmeler.Any())
+var kullaniciBirim = User.IsInRole(RoleConstants.Roles.BirimKullanicisi) || User.IsInRole(RoleConstants.Roles.BirimYetkilisi);
+
+if (Model.Degerlendirmeler.Any() && !kullaniciBirim)
 {
     <section>
         <h2>Teknik Değerlendirme</h2>
@@ -89,6 +91,31 @@
         </table>
     </section>
 }
+else if (kullaniciBirim && Model.Talep is not null)
+{
+    var durum = Model.Talep.Status;
+    <section>
+        <h2>Talep Durumu</h2>
+        <ul class="durum-zinciri">
+            <li class="aktif">Başvuru Alındı</li>
+            <li class="@(durum >= RequestStatus.OnayBekleniyor ? "aktif" : string.Empty)">Birim Onayı Bekleniyor</li>
+            <li class="@(durum >= RequestStatus.Degerlendirmede ? "aktif" : string.Empty)">Değerlendirmede</li>
+            <li class="@(durum == RequestStatus.Gelistirmede || durum == RequestStatus.Tamamlandi || durum == RequestStatus.Kapandi ? "aktif" : string.Empty)">Onaylandı</li>
+            @if (durum == RequestStatus.Reddedildi)
+            {
+                <li class="aktif reddedildi">Reddedildi</li>
+            }
+        </ul>
+        @if (durum == RequestStatus.BaskanOnayiBekliyor)
+        {
+            <p class="yardim-metin">Teknik değerlendirme tamamlandı, başkan onayı bekleniyor.</p>
+        }
+        @if (durum == RequestStatus.Reddedildi && !string.IsNullOrWhiteSpace(Model.Talep.RejectionReason))
+        {
+            <p class="bilgi-kutu uyari">Red Gerekçesi: @Model.Talep.RejectionReason</p>
+        }
+    </section>
+}
 
 @if (Model.Proje is not null)
 {
@@ -97,6 +124,12 @@
         <p><strong>Proje Adı:</strong> @Model.Proje.Name</p>
         <p><strong>Durum:</strong> @Model.Proje.Status</p>
         <p><strong>Sorumlu:</strong> @(Model.Proje.LeadUser?.FullName ?? "-")</p>
+        @if ((ViewData["TakimAtamaIzni"] as bool? ?? false))
+        {
+            <p>
+                <a class="buton-link" asp-action="Gorevlendir" asp-route-id="@Model.Talep!.Id">Ekip Görevlendir</a>
+            </p>
+        }
         <div class="algoritma-blok">
             <h3>Algoritma Akışı</h3>
             <div class="akisma-onizleme" id="algoritma-onizleme-@Model.Talep!.Id" data-flow-preview data-flow-source="@Model.AlgorithmJson">
@@ -149,9 +182,14 @@
             <input type="hidden" name="algoritmaJson" value="@Model.AlgorithmJson" data-flow-input />
             <div class="akisma-editor" data-flow-editor>
                 <ul class="akisma-adim-listesi" data-flow-list></ul>
-                <button type="button" class="buton-link" data-flow-add>Yeni Adım Ekle</button>
+                @{ var algoritmaKilitli = ViewData["AlgoritmaButonPasif"] as bool? ?? false; }
+                <button type="button" class="buton-link" data-flow-add @(algoritmaKilitli ? "disabled=\"disabled\"" : string.Empty)>Yeni Adım Ekle</button>
             </div>
             <p class="yardim-metin">Adımları sürükleyip bırakarak sıralayın, her adım için başlık ve açıklama girin.</p>
+            @if (algoritmaKilitli)
+            {
+                <p class="bilgi-kutu uyari">Algoritma düzenleme yetkisi başkan onayı sonrası aktif olur.</p>
+            }
             <button type="submit">Algoritmayı Kaydet</button>
         </form>
     </section>

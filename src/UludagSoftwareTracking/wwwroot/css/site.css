@@ -438,6 +438,19 @@ body {
     color: #1b5dbf;
 }
 
+.akisma-editor-kod {
+    display: inline-block;
+    min-width: 48px;
+    margin-left: 0.75rem;
+    margin-right: 0.75rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 999px;
+    background-color: #e3edff;
+    color: #1b5dbf;
+    font-weight: 600;
+    text-align: center;
+}
+
 .akisma-editor-icerik {
     display: flex;
     flex-direction: column;
@@ -464,6 +477,59 @@ body {
     border-radius: 6px;
     color: #6b7280;
     text-align: center;
+}
+
+.durum-zinciri {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0;
+}
+
+.durum-zinciri li {
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    background-color: #e5e7eb;
+    color: #1f2937;
+    font-weight: 600;
+}
+
+.durum-zinciri li.aktif {
+    background-color: #1b5dbf;
+    color: #fff;
+}
+
+.durum-zinciri li.reddedildi {
+    background-color: #dc2626;
+    color: #fff;
+}
+
+.filtre-formu {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.filtre-satiri {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.filtre-satiri .form-grup {
+    min-width: 180px;
+}
+
+.filtre-butonu {
+    align-self: flex-end;
+}
+
+.metin-hata {
+    color: #dc2626;
+    font-weight: 600;
+    margin-top: 0.25rem;
 }
 
 .kilavuz-listesi {

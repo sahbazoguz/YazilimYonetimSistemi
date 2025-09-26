@@ -14,6 +14,8 @@ public static class RoleConstants
         public const string DegerlendiriciUc = "Değerlendirici 3";
         public const string DegerlendirmeBaskani = "Değerlendirme Başkanı";
         public const string Yazilimci = "Yazılımcı";
+        public const string EkipLideri = "Ekip Lideri";
+        public const string TestYazilimcisi = "Test Yazılımcısı";
         public const string Admin = "Admin";
     }
 

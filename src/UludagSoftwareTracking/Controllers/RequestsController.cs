@@ -179,12 +179,43 @@ public class RequestsController : Controller
                 {
                     return Forbid();
                 }
+
+                detail = new RequestDetailViewModel
+                {
+                    Talep = detail.Talep,
+                    Onaylar = detail.Onaylar,
+                    Degerlendirmeler = Array.Empty<RequestAssessment>(),
+                    Proje = detail.Proje,
+                    Mesajlar = detail.Mesajlar,
+                    AlgorithmJson = detail.AlgorithmJson
+                };
             }
             else if (user.Role == UserRole.Personel || user.Role == UserRole.Ogrenci)
             {
                 return Forbid();
             }
+            else if (user.Role == UserRole.Yazilimci)
+            {
+                var request = detail.Talep;
+                var statusAllowed = request is not null && (request.Status == RequestStatus.Gelistirmede
+                    || request.Status == RequestStatus.Tamamlandi
+                    || request.Status == RequestStatus.Kapandi);
+                var assigned = detail.Proje?.Assignments.Any(a => a.UserId == user.Id) == true;
+
+                if (!statusAllowed || !assigned)
+                {
+                    return Forbid();
+                }
+            }
         }
+
+        var algorithmLocked = detail.Talep?.Status != RequestStatus.Gelistirmede
+            && detail.Talep?.Status != RequestStatus.Tamamlandi
+            && detail.Talep?.Status != RequestStatus.Kapandi;
+
+        ViewData["AlgoritmaButonPasif"] = algorithmLocked;
+        ViewData["TakimAtamaIzni"] = user?.Role == UserRole.DegerlendirmeBaskani
+            && detail.Talep?.Status == RequestStatus.Gelistirmede;
 
         return View(detail);
     }
@@ -316,6 +347,80 @@ public class RequestsController : Controller
         }
 
         return RedirectToAction(nameof(Detay), new { id = model.RequestId });
+    }
+
+    [Authorize(Policy = RoleConstants.Policies.RequireBaskan)]
+    public async Task<IActionResult> Gorevlendir(int id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var model = await _requestWorkflowService.GetProjectTeamAsync(id, cancellationToken);
+            return View(model);
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["Warning"] = ex.Message;
+            return RedirectToAction(nameof(Detay), new { id });
+        }
+    }
+
+    [HttpPost]
+    [Authorize(Policy = RoleConstants.Policies.RequireBaskan)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Gorevlendir(ProjectTeamAssignmentInputModel model, CancellationToken cancellationToken)
+    {
+        model.DeveloperIds ??= new List<int>();
+        model.TesterIds ??= new List<int>();
+
+        if (model.DeveloperIds.Count == 0)
+        {
+            ModelState.AddModelError(nameof(model.DeveloperIds), "En az bir geliştirici seçmelisiniz.");
+        }
+
+        var user = await _userContextService.GetCurrentUserAsync(cancellationToken);
+        if (user is null)
+        {
+            return Forbid();
+        }
+
+        if (!ModelState.IsValid)
+        {
+            var refreshed = await _requestWorkflowService.GetProjectTeamAsync(model.RequestId, cancellationToken);
+            refreshed.LeadUserId = model.LeadUserId;
+            refreshed.DeveloperIds = model.DeveloperIds;
+            refreshed.TesterIds = model.TesterIds;
+            return View(refreshed);
+        }
+
+        try
+        {
+            await _requestWorkflowService.UpdateProjectTeamAsync(model, user.Id, cancellationToken);
+            TempData["Success"] = "Proje ekibi güncellendi";
+            return RedirectToAction(nameof(Detay), new { id = model.RequestId });
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["Warning"] = ex.Message;
+            ModelState.AddModelError(string.Empty, ex.Message);
+            var refreshed = await _requestWorkflowService.GetProjectTeamAsync(model.RequestId, cancellationToken);
+            refreshed.LeadUserId = model.LeadUserId;
+            refreshed.DeveloperIds = model.DeveloperIds;
+            refreshed.TesterIds = model.TesterIds;
+            return View(refreshed);
+        }
+    }
+
+    [Authorize(Policy = RoleConstants.Policies.RequireDegerlendirici)]
+    public async Task<IActionResult> DegerlendirmeGecmisi(DateTime? baslangic, DateTime? bitis, AssessmentResult? karar, CancellationToken cancellationToken)
+    {
+        var user = await _userContextService.GetCurrentUserAsync(cancellationToken);
+        if (user is null)
+        {
+            return Forbid();
+        }
+
+        var model = await _requestWorkflowService.GetAssessmentHistoryAsync(user.Id, baslangic, bitis, karar, cancellationToken);
+        return View(model);
     }
 
     [HttpPost]

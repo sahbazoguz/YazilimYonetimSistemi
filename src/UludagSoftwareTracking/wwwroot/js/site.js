@@ -13,6 +13,7 @@
             const parsed = JSON.parse(json);
             if (Array.isArray(parsed)) {
                 return parsed.map((step) => ({
+                    Code: typeof step?.Code === 'string' ? step.Code : (typeof step?.code === 'string' ? step.code : ''),
                     Title: typeof step?.Title === 'string' ? step.Title : (typeof step?.title === 'string' ? step.title : ''),
                     Description: typeof step?.Description === 'string' ? step.Description : (typeof step?.description === 'string' ? step.description : '')
                 }));
@@ -45,7 +46,9 @@
 
             const title = document.createElement('div');
             title.className = 'akisma-kart-baslik';
-            title.textContent = step.Title || `Adım ${index + 1}`;
+            const codeText = step.Code || `A${index + 1}`;
+            const stepTitle = step.Title ? ` - ${step.Title}` : '';
+            title.textContent = `${codeText}${stepTitle}`;
             card.appendChild(title);
 
             if (step.Description) {
@@ -80,8 +83,16 @@
         const previewSelector = form.getAttribute('data-flow-target');
         const previewElement = previewSelector ? document.querySelector(previewSelector) : null;
 
+        function refreshCodes() {
+            steps.forEach((step, index) => {
+                step.Code = `A${index + 1}`;
+            });
+        }
+
         function syncState() {
+            refreshCodes();
             const serialized = steps.map((step) => ({
+                Code: step.Code || '',
                 Title: (step.Title || '').trim(),
                 Description: (step.Description || '').trim()
             }));
@@ -94,6 +105,7 @@
 
         function renderList() {
             list.innerHTML = '';
+            refreshCodes();
 
             if (steps.length === 0) {
                 const empty = document.createElement('li');
@@ -113,6 +125,11 @@
                 handle.className = 'akisma-editor-tutamak';
                 handle.innerHTML = '&#9776;';
                 item.appendChild(handle);
+
+                const codeBadge = document.createElement('span');
+                codeBadge.className = 'akisma-editor-kod';
+                codeBadge.textContent = step.Code || `A${index + 1}`;
+                item.appendChild(codeBadge);
 
                 const fields = document.createElement('div');
                 fields.className = 'akisma-editor-icerik';
@@ -189,12 +206,22 @@
         }
 
         addButton.addEventListener('click', () => {
-            steps.push({ Title: `Adım ${steps.length + 1}`, Description: '' });
+            if (addButton.disabled) {
+                return;
+            }
+            steps.push({ Title: '', Description: '' });
             renderList();
             syncState();
         });
 
-        form.addEventListener('submit', () => {
+        form.addEventListener('submit', (event) => {
+            refreshCodes();
+            const hasEmpty = steps.length > 0 && steps.some((step) => !(step.Title && step.Title.trim().length > 0));
+            if (hasEmpty) {
+                event.preventDefault();
+                window.alert('Lütfen tüm algoritma adımları için başlık girin.');
+                return;
+            }
             syncState();
         });
 
