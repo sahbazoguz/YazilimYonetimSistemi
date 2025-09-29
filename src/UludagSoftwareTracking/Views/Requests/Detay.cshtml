@@ -137,6 +137,10 @@ else if (kullaniciBirim && Model.Talep is not null)
             <div class="akisma-onizleme" id="algoritma-onizleme-@Model.Talep!.Id" data-flow-preview data-flow-source="@Model.AlgorithmJson">
                 <p class="yardim-metin">Henüz adım eklenmedi.</p>
             </div>
+            <div class="akisma-diagram-wrapper">
+                <h4>Otomatik Akış Diyagramı</h4>
+                <div class="akisma-diagram" id="algoritma-diagram-@Model.Talep!.Id" data-flow-diagram data-flow-source="@Model.AlgorithmJson"></div>
+            </div>
         </div>
         <div class="kilavuz-blok">
             <h3>Kılavuzlar</h3>
@@ -179,69 +183,115 @@ else if (kullaniciBirim && Model.Talep is not null)
 @if (Model.Proje is not null && (User.IsInRole(RoleConstants.Roles.Yazilimci) || User.IsInRole(RoleConstants.Roles.BirimKullanicisi)))
 {
     var algoritmaKilitli = ViewData["AlgoritmaButonPasif"] as bool? ?? false;
-    var algorithmExampleJson = @"[
-  {
-    ""Code"": ""A1"",
-    ""Type"": ""Normal"",
-    ""Title"": ""Talebin Alınması"",
-    ""Description"": ""Birim kullanıcısı talep formunu doldurur."",
-    ""Role"": ""Birim Kullanıcısı"",
-    ""Next"": ""A2""
-  },
-  {
-    ""Code"": ""A2"",
-    ""Type"": ""Decision"",
-    ""Title"": ""Birim Yetkilisi Onayı"",
-    ""Description"": ""Yetkili talebi onaylıyor mu?"",
-    ""Role"": ""Birim Yetkilisi"",
-    ""Next"": {
-      ""Evet"": ""A3"",
-      ""Hayır"": ""A5""
+    var algorithmExampleJson = @"{
+  ""flows"": [
+    { ""label"": ""Yeni Talep Akışı"", ""startCode"": ""A1"" },
+    { ""label"": ""Bakım Süreci"", ""startCode"": ""B1"" }
+  ],
+  ""steps"": [
+    {
+      ""code"": ""A1"",
+      ""type"": ""Normal"",
+      ""title"": ""Talep Oluşturma"",
+      ""description"": ""Birim kullanıcısı yeni talep formunu doldurur."",
+      ""role"": ""Birim Kullanıcısı"",
+      ""next"": ""A2""
+    },
+    {
+      ""code"": ""A2"",
+      ""type"": ""Decision"",
+      ""title"": ""Birim Yetkilisi Onayı"",
+      ""description"": ""Yetkili talebi onaylıyor mu?"",
+      ""role"": ""Birim Yetkilisi"",
+      ""next"": {
+        ""Evet"": ""A3"",
+        ""Hayır"": ""A7""
+      }
+    },
+    {
+      ""code"": ""A3"",
+      ""type"": ""Normal"",
+      ""title"": ""Teknik Değerlendirme"",
+      ""description"": ""Değerlendirme ekibi rapor hazırlar."",
+      ""role"": ""Değerlendirme Ekibi"",
+      ""next"": [""A4"", ""B2""]
+    },
+    {
+      ""code"": ""A4"",
+      ""type"": ""Normal"",
+      ""title"": ""Başkan Kararı"",
+      ""description"": ""Başkan nihai kararı verir."",
+      ""role"": ""Değerlendirme Başkanı"",
+      ""next"": ""A5""
+    },
+    {
+      ""code"": ""A5"",
+      ""type"": ""Normal"",
+      ""title"": ""Geliştirme"",
+      ""description"": ""Onaylanan talep yazılım ekibine aktarılır."",
+      ""role"": ""Yazılımcı"",
+      ""next"": ""A6""
+    },
+    {
+      ""code"": ""A6"",
+      ""type"": ""Normal"",
+      ""title"": ""Kullanım Kılavuzu"",
+      ""description"": ""Birim kullanıcıları kılavuz yükler."",
+      ""role"": ""Birim Kullanıcısı"",
+      ""next"": null
+    },
+    {
+      ""code"": ""A7"",
+      ""type"": ""Normal"",
+      ""title"": ""Talep Kapanışı"",
+      ""description"": ""Reddedilen talep kapatılır."",
+      ""role"": ""Birim Yetkilisi"",
+      ""next"": null
+    },
+    {
+      ""code"": ""B1"",
+      ""type"": ""Normal"",
+      ""title"": ""Bakım Talebi"",
+      ""description"": ""Mevcut yazılım için bakım isteği alınır."",
+      ""role"": ""Birim Kullanıcısı"",
+      ""next"": ""B2""
+    },
+    {
+      ""code"": ""B2"",
+      ""type"": ""Normal"",
+      ""title"": ""Teknik İnceleme"",
+      ""description"": ""Bakım planı değerlendirilir."",
+      ""role"": ""Değerlendirme Ekibi"",
+      ""next"": ""B3""
+    },
+    {
+      ""code"": ""B3"",
+      ""type"": ""Normal"",
+      ""title"": ""Bakım Tamamlama"",
+      ""description"": ""Yazılım ekibi bakım çalışmasını tamamlar."",
+      ""role"": ""Yazılımcı"",
+      ""next"": ""A6""
     }
-  },
-  {
-    ""Code"": ""A3"",
-    ""Type"": ""Normal"",
-    ""Title"": ""Teknik Değerlendirme"",
-    ""Description"": ""Değerlendirme ekibi rapor hazırlar."",
-    ""Role"": ""Değerlendirme Ekibi"",
-    ""Next"": ""A4""
-  },
-  {
-    ""Code"": ""A4"",
-    ""Type"": ""Normal"",
-    ""Title"": ""Başkan Onayı"",
-    ""Description"": ""Başkan nihai kararı verir."",
-    ""Role"": ""Değerlendirme Başkanı"",
-    ""Next"": ""A6""
-  },
-  {
-    ""Code"": ""A5"",
-    ""Type"": ""Normal"",
-    ""Title"": ""Talep Kapanışı"",
-    ""Description"": ""Reddedilen talepler kapatılır ve bildirilir."",
-    ""Role"": ""Birim Yetkilisi"",
-    ""Next"": null
-  },
-  {
-    ""Code"": ""A6"",
-    ""Type"": ""Normal"",
-    ""Title"": ""Geliştirme Başlangıcı"",
-    ""Description"": ""Onaylanan talep yazılım ekibine aktarılır."",
-    ""Role"": ""Yazılımcı"",
-    ""Next"": null
-  }
-]";
+  ]
+}";
 
     <section class="form-alani">
         <h2>Algoritma Tasarım Editörü</h2>
-        <form asp-action="AlgoritmaGuncelle" asp-route-id="@Model.Talep!.Id" method="post" data-flow-form data-flow-target="#algoritma-onizleme-@Model.Talep!.Id">
+        <form asp-action="AlgoritmaGuncelle" asp-route-id="@Model.Talep!.Id" method="post" data-flow-form data-flow-target="#algoritma-onizleme-@Model.Talep!.Id" data-flow-diagram-target="#algoritma-diagram-@Model.Talep!.Id">
             <input type="hidden" name="algoritmaJson" value="@Model.AlgorithmJson" data-flow-input />
             <div class="akisma-editor" data-flow-editor>
                 <ul class="akisma-adim-listesi" data-flow-list></ul>
+                <div class="akisma-baslangic-panel" data-flow-starts>
+                    <header>
+                        <h3>Başlangıç Akışları</h3>
+                        <button type="button" class="buton-link" data-flow-start-add>Yeni Akış</button>
+                    </header>
+                    <ul class="akisma-baslangic-listesi" data-flow-start-list></ul>
+                    <p class="yardim-metin">Her akış için bir başlangıç adımı seçin. Aynı adım birden fazla akışta kullanılabilir.</p>
+                </div>
                 <button type="button" class="buton-link" data-flow-add @(algoritmaKilitli ? "disabled=\"disabled\"" : string.Empty)>Yeni Adım Ekle</button>
             </div>
-            <p class="yardim-metin">Adımları sürükleyip bırakarak sıralayın, her adım için başlık, açıklama ve gerekirse rol bilgisini girin.</p>
+            <p class="yardim-metin">Adımları sürükleyip bırakarak sıralayın, her adım için kod, başlık, açıklama, rol ve geçiş bilgilerini girin.</p>
             <details class="akisma-ornek">
                 <summary>Örnek karar akışı JSON'unu görüntüle</summary>
                 <pre class="kod-blok">@Html.Raw(algorithmExampleJson)</pre>

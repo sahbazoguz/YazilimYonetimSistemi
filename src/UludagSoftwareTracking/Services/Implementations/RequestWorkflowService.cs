@@ -29,6 +29,7 @@ public class RequestWorkflowService : IRequestWorkflowService
     private static readonly JsonSerializerOptions AlgorithmSerializerOptions = new()
     {
         PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = false
     };
 
@@ -978,17 +979,15 @@ public class RequestWorkflowService : IRequestWorkflowService
 
         try
         {
-            var deserialized = JsonSerializer.Deserialize<List<AlgorithmStepModel>>(algorithmJson, AlgorithmSerializerOptions)
-                ?? new List<AlgorithmStepModel>();
+            var designer = ParseAlgorithmDesigner(algorithmJson);
+            var normalized = NormalizeAlgorithmDesigner(designer);
 
-            var steps = NormalizeAlgorithmSteps(deserialized);
-
-            if (steps.Count == 0)
+            if (normalized.Steps.Count == 0)
             {
                 return null;
             }
 
-            return JsonSerializer.Serialize(steps, AlgorithmSerializerOptions);
+            return JsonSerializer.Serialize(normalized, AlgorithmSerializerOptions);
         }
         catch (JsonException ex)
         {
@@ -1000,35 +999,80 @@ public class RequestWorkflowService : IRequestWorkflowService
     {
         if (string.IsNullOrWhiteSpace(algorithmNotes))
         {
-            return "[]";
+            return JsonSerializer.Serialize(new AlgorithmDesignerModel(), AlgorithmSerializerOptions);
         }
 
         try
         {
-            var deserialized = JsonSerializer.Deserialize<List<AlgorithmStepModel>>(algorithmNotes, AlgorithmSerializerOptions)
-                ?? new List<AlgorithmStepModel>();
-
-            var steps = NormalizeAlgorithmSteps(deserialized);
-
-            return JsonSerializer.Serialize(steps, AlgorithmSerializerOptions);
+            var designer = ParseAlgorithmDesigner(algorithmNotes);
+            var normalized = NormalizeAlgorithmDesigner(designer);
+            return JsonSerializer.Serialize(normalized, AlgorithmSerializerOptions);
         }
         catch (JsonException)
         {
-            var fallback = new List<AlgorithmStepModel>
+            var fallback = NormalizeAlgorithmDesigner(new AlgorithmDesignerModel
             {
-                new()
+                Steps = new List<AlgorithmStepModel>
                 {
-                    Title = "Akış",
-                    Description = algorithmNotes!.Trim(),
-                    Code = BuildStepCode(0),
-                    Type = StepTypeNormal
+                    new()
+                    {
+                        Title = "Akış",
+                        Description = algorithmNotes!.Trim(),
+                        Code = BuildStepCode(0),
+                        Type = StepTypeNormal
+                    }
                 }
-            };
-
-            ApplyStepDefaults(fallback);
+            });
 
             return JsonSerializer.Serialize(fallback, AlgorithmSerializerOptions);
         }
+    }
+
+    private static AlgorithmDesignerModel ParseAlgorithmDesigner(string json)
+    {
+        var node = JsonNode.Parse(json);
+
+        if (node is JsonArray array)
+        {
+            var steps = array.Deserialize<List<AlgorithmStepModel>>(AlgorithmSerializerOptions) ?? new List<AlgorithmStepModel>();
+            return new AlgorithmDesignerModel { Steps = steps };
+        }
+
+        if (node is JsonObject obj)
+        {
+            if (obj.TryGetPropertyValue("steps", out _))
+            {
+                var designer = obj.Deserialize<AlgorithmDesignerModel>(AlgorithmSerializerOptions)
+                    ?? new AlgorithmDesignerModel();
+
+                designer.Flows ??= new List<AlgorithmFlowModel>();
+                designer.Steps ??= new List<AlgorithmStepModel>();
+                return designer;
+            }
+
+            var singleStep = obj.Deserialize<AlgorithmStepModel>(AlgorithmSerializerOptions);
+            if (singleStep is not null)
+            {
+                return new AlgorithmDesignerModel
+                {
+                    Steps = new List<AlgorithmStepModel> { singleStep }
+                };
+            }
+        }
+
+        return new AlgorithmDesignerModel();
+    }
+
+    private static AlgorithmDesignerModel NormalizeAlgorithmDesigner(AlgorithmDesignerModel designer)
+    {
+        var normalizedSteps = NormalizeAlgorithmSteps(designer.Steps ?? Array.Empty<AlgorithmStepModel>());
+        var normalizedFlows = NormalizeAlgorithmFlows(designer.Flows ?? Array.Empty<AlgorithmFlowModel>(), normalizedSteps);
+
+        return new AlgorithmDesignerModel
+        {
+            Steps = normalizedSteps,
+            Flows = normalizedFlows
+        };
     }
 
     private static List<AlgorithmStepModel> NormalizeAlgorithmSteps(IEnumerable<AlgorithmStepModel> steps)
@@ -1049,6 +1093,58 @@ public class RequestWorkflowService : IRequestWorkflowService
         ApplyStepDefaults(normalized);
 
         return normalized;
+    }
+
+    private static List<AlgorithmFlowModel> NormalizeAlgorithmFlows(IEnumerable<AlgorithmFlowModel> flows, IReadOnlyList<AlgorithmStepModel> steps)
+    {
+        var codes = new HashSet<string>(steps.Select(s => s.Code), StringComparer.OrdinalIgnoreCase);
+        var result = new List<AlgorithmFlowModel>();
+        var seenCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var index = 0;
+
+        foreach (var flow in flows)
+        {
+            if (flow is null)
+            {
+                continue;
+            }
+
+            var startCode = flow.StartCode?.Trim();
+            if (string.IsNullOrWhiteSpace(startCode) || !codes.Contains(startCode) || seenCodes.Contains(startCode))
+            {
+                continue;
+            }
+
+            var matchedCode = steps.FirstOrDefault(s => string.Equals(s.Code, startCode, StringComparison.OrdinalIgnoreCase))?.Code;
+            if (matchedCode is null)
+            {
+                continue;
+            }
+
+            var label = string.IsNullOrWhiteSpace(flow.Label)
+                ? $"Akış {index + 1}"
+                : flow.Label!.Trim();
+
+            result.Add(new AlgorithmFlowModel
+            {
+                StartCode = matchedCode,
+                Label = label
+            });
+
+            seenCodes.Add(matchedCode);
+            index++;
+        }
+
+        if (result.Count == 0 && steps.Count > 0)
+        {
+            result.Add(new AlgorithmFlowModel
+            {
+                StartCode = steps[0].Code,
+                Label = "Ana Akış"
+            });
+        }
+
+        return result;
     }
 
     private static string NormalizeStepType(string? type)
@@ -1076,6 +1172,43 @@ public class RequestWorkflowService : IRequestWorkflowService
             return null;
         }
 
+        if (next is JsonValue value)
+        {
+            if (value.GetValueKind() == JsonValueKind.Null)
+            {
+                return null;
+            }
+
+            var text = value.ToString().Trim();
+            return string.IsNullOrWhiteSpace(text) ? null : JsonValue.Create(text);
+        }
+
+        if (next is JsonArray array)
+        {
+            var sanitized = new JsonArray();
+            foreach (var item in array)
+            {
+                var normalizedItem = NormalizeBranchValue(item);
+                if (normalizedItem is JsonValue jsonValue)
+                {
+                    sanitized.Add(jsonValue.ToString());
+                }
+            }
+
+            return sanitized.Count > 0 ? sanitized : null;
+        }
+
+        if (next is JsonObject obj)
+        {
+            var result = new JsonObject();
+            foreach (var kvp in obj)
+            {
+                result[kvp.Key] = NormalizeBranchValue(kvp.Value);
+            }
+
+            return result;
+        }
+
         try
         {
             return JsonNode.Parse(next.ToJsonString());
@@ -1088,62 +1221,111 @@ public class RequestWorkflowService : IRequestWorkflowService
 
     private static void ApplyStepDefaults(IList<AlgorithmStepModel> steps)
     {
+        var usedCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         for (var i = 0; i < steps.Count; i++)
         {
-            steps[i].Code = BuildStepCode(i);
+            var desired = string.IsNullOrWhiteSpace(steps[i].Code)
+                ? BuildStepCode(i)
+                : steps[i].Code.Trim();
+
+            var unique = EnsureUniqueCode(desired, usedCodes);
+            steps[i].Code = unique;
+            usedCodes.Add(unique);
         }
 
         for (var i = 0; i < steps.Count; i++)
         {
+            var nextDefault = i < steps.Count - 1 ? steps[i + 1].Code : null;
+
             if (string.Equals(steps[i].Type, StepTypeDecision, StringComparison.OrdinalIgnoreCase))
             {
-                var nextStepCode = i < steps.Count - 1 ? steps[i + 1].Code : null;
-                steps[i].Next = NormalizeDecisionNext(steps[i].Next, nextStepCode);
+                steps[i].Next = NormalizeDecisionNext(steps[i].Next, nextDefault);
             }
             else
             {
-                if (steps[i].Next is null ||
-                    (steps[i].Next is JsonValue value &&
-                     (value.GetValueKind() == JsonValueKind.Null || string.IsNullOrWhiteSpace(value.ToString()))))
-                {
-                    steps[i].Next = i < steps.Count - 1
-                        ? JsonValue.Create<string?>(steps[i + 1].Code)
-                        : null;
-                }
+                steps[i].Next = NormalizeSequentialNext(steps[i].Next, nextDefault);
             }
         }
+    }
+
+    private static string EnsureUniqueCode(string desired, ISet<string> used)
+    {
+        var code = string.IsNullOrWhiteSpace(desired) ? BuildStepCode(used.Count) : desired;
+        var suffix = 1;
+
+        while (used.Contains(code))
+        {
+            code = $"{desired}_{suffix}";
+            suffix++;
+        }
+
+        return code;
+    }
+
+    private static JsonNode? NormalizeSequentialNext(JsonNode? next, string? fallback)
+    {
+        var normalized = NormalizeBranchValue(next);
+
+        if (normalized is null)
+        {
+            return string.IsNullOrWhiteSpace(fallback) ? null : JsonValue.Create(fallback);
+        }
+
+        if (normalized is JsonArray array && array.Count == 1 && array[0] is not null)
+        {
+            return JsonValue.Create(array[0]!.ToString());
+        }
+
+        return normalized;
     }
 
     private static JsonNode NormalizeDecisionNext(JsonNode? next, string? defaultYesTarget)
     {
         var result = new JsonObject
         {
-            ["Evet"] = JsonValue.Create(defaultYesTarget),
-            ["Hayır"] = null
+            ["Evet"] = string.IsNullOrWhiteSpace(defaultYesTarget)
+                ? JsonValue.Create<string?>(null)
+                : JsonValue.Create(defaultYesTarget),
+            ["Hayır"] = JsonValue.Create<string?>(null)
         };
 
         if (next is JsonObject obj)
         {
-            if (obj.TryGetPropertyValue("Evet", out var yesNode))
+            foreach (var kvp in obj)
             {
-                result["Evet"] = NormalizeBranchValue(yesNode);
+                if (string.Equals(kvp.Key, "Evet", StringComparison.OrdinalIgnoreCase))
+                {
+                    result["Evet"] = NormalizeBranchValue(kvp.Value) ?? JsonValue.Create<string?>(null);
+                }
+                else if (string.Equals(kvp.Key, "Hayır", StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(kvp.Key, "Hayir", StringComparison.OrdinalIgnoreCase))
+                {
+                    result["Hayır"] = NormalizeBranchValue(kvp.Value) ?? JsonValue.Create<string?>(null);
+                }
+                else
+                {
+                    result[kvp.Key] = NormalizeBranchValue(kvp.Value) ?? JsonValue.Create<string?>(null);
+                }
             }
 
-            if (obj.TryGetPropertyValue("Hayır", out var noNode))
+            if (!result.ContainsKey("Evet"))
             {
-                result["Hayır"] = NormalizeBranchValue(noNode);
+                result["Evet"] = JsonValue.Create<string?>(null);
             }
-            else if (obj.TryGetPropertyValue("Hayir", out var noLatinNode))
+
+            if (!result.ContainsKey("Hayır"))
             {
-                result["Hayır"] = NormalizeBranchValue(noLatinNode);
+                result["Hayır"] = JsonValue.Create<string?>(null);
             }
 
             return result;
         }
 
-        if (next is JsonValue value)
+        var normalized = NormalizeBranchValue(next);
+        if (normalized is not null)
         {
-            result["Evet"] = NormalizeBranchValue(value);
+            result["Evet"] = normalized;
         }
 
         return result;
@@ -1163,17 +1345,38 @@ public class RequestWorkflowService : IRequestWorkflowService
                 return null;
             }
 
-            return JsonValue.Create(value.ToString());
+            var text = value.ToString().Trim();
+            return string.IsNullOrWhiteSpace(text) ? null : JsonValue.Create(text);
         }
 
-        try
+        if (node is JsonArray array)
         {
-            return JsonNode.Parse(node.ToJsonString());
+            var sanitized = new JsonArray();
+            foreach (var item in array)
+            {
+                var normalized = NormalizeBranchValue(item);
+                if (normalized is JsonValue jsonValue)
+                {
+                    sanitized.Add(jsonValue.ToString());
+                }
+            }
+
+            return sanitized.Count > 0 ? sanitized : null;
         }
-        catch (JsonException)
+
+        if (node is JsonObject obj)
         {
-            return null;
+            var result = new JsonObject();
+            foreach (var kvp in obj)
+            {
+                var normalized = NormalizeBranchValue(kvp.Value);
+                result[kvp.Key] = normalized ?? JsonValue.Create<string?>(null);
+            }
+
+            return result.Count > 0 ? result : null;
         }
+
+        return null;
     }
 
     private async Task<List<UserProfile>> GetUsersByRolesAsync(CancellationToken cancellationToken, params UserRole[] roles)

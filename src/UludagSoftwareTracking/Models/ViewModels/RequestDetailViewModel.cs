@@ -16,5 +16,5 @@ public class RequestDetailViewModel
 
     public IReadOnlyCollection<RequestDiscussionMessage> Mesajlar { get; init; } = Array.Empty<RequestDiscussionMessage>();
 
-    public string AlgorithmJson { get; init; } = "[]";
+    public string AlgorithmJson { get; init; } = "{\"flows\":[],\"steps\":[]}";
 }

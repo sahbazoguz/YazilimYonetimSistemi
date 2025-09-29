@@ -457,6 +457,10 @@ body {
     border-radius: 8px;
     padding: 1rem;
     background-color: #f6f9ff;
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+    gap: 1.25rem;
+    align-items: flex-start;
 }
 
 .akisma-adim-listesi {
@@ -466,6 +470,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    grid-column: 1 / span 1;
 }
 
 .akisma-editor-adim {
@@ -488,23 +493,29 @@ body {
     background-color: #eef4ff;
 }
 
+.akisma-editor-adim.kilitli {
+    opacity: 0.75;
+}
+
 .akisma-editor-tutamak {
     cursor: move;
     font-size: 1.25rem;
     color: #1b5dbf;
 }
 
-.akisma-editor-kod {
-    display: inline-block;
-    min-width: 48px;
-    margin-left: 0.75rem;
-    margin-right: 0.75rem;
-    padding: 0.35rem 0.6rem;
-    border-radius: 999px;
-    background-color: #e3edff;
-    color: #1b5dbf;
+.akisma-editor-tutamak.pasif {
+    cursor: not-allowed;
+    color: #9ca3af;
+}
+
+.akisma-editor-kod-input {
+    width: 90px;
+    border-radius: 6px;
+    border: 1px solid #c7d7ff;
+    padding: 0.35rem 0.5rem;
     font-weight: 600;
-    text-align: center;
+    color: #1b5dbf;
+    background-color: #f8fbff;
 }
 
 .akisma-editor-icerik {
@@ -533,6 +544,182 @@ body {
 
 .akisma-editor-sil {
     align-self: center;
+}
+
+.akisma-editor-gecis {
+    border-top: 1px dashed #d0defa;
+    padding-top: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.akisma-editor-gecis-etiket {
+    font-weight: 600;
+    color: #1b5dbf;
+}
+
+.akisma-editor-gecis-secim,
+.akisma-editor-dal-secim {
+    width: 100%;
+    min-height: 2.5rem;
+}
+
+.akisma-editor-dal {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.5rem;
+    border: 1px solid #d9e7ff;
+    border-radius: 6px;
+    background-color: #fdfdff;
+}
+
+.akisma-editor-dal-etiket {
+    font-weight: 600;
+}
+
+.akisma-editor-dal-sil,
+.akisma-editor-dal-ekle {
+    align-self: flex-start;
+}
+
+.akisma-baslangic-panel {
+    grid-column: 2 / span 1;
+    border: 1px solid #c7d7ff;
+    border-radius: 6px;
+    background-color: #fff;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.akisma-baslangic-panel header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.akisma-baslangic-listesi {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.akisma-baslangic-kalem {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    border: 1px solid #d0dffc;
+    border-radius: 6px;
+    padding: 0.6rem;
+    background-color: #f8fbff;
+}
+
+.akisma-baslangic-isim {
+    font-weight: 600;
+}
+
+.akisma-baslangic-secim {
+    width: 100%;
+}
+
+.akisma-baslangic-sil {
+    align-self: flex-start;
+}
+
+.akisma-baslangic-bos {
+    text-align: center;
+    color: #6b7280;
+    padding: 0.5rem;
+}
+
+.akisma-editor [data-flow-add] {
+    grid-column: 1 / span 1;
+    justify-self: flex-start;
+}
+
+.akisma-onizleme-akislar {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 0.75rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-weight: 600;
+    color: #1f3d7a;
+}
+
+.akisma-kart-gecis {
+    margin-top: 0.6rem;
+    font-size: 0.9rem;
+    color: #475569;
+}
+
+.akisma-diagram-wrapper {
+    margin-top: 1.25rem;
+    border: 1px solid #dbeafe;
+    border-radius: 8px;
+    background-color: #f0f6ff;
+    padding: 1rem;
+}
+
+.akisma-diagram {
+    width: 100%;
+    min-height: 260px;
+    overflow-x: auto;
+}
+
+.akisma-diagram-svg {
+    width: 100%;
+    height: auto;
+}
+
+.akisma-diagram-dugum {
+    fill: #ffffff;
+    stroke: #2563eb;
+    stroke-width: 1.5;
+    filter: drop-shadow(0 1px 2px rgba(37, 99, 235, 0.25));
+}
+
+.akisma-diagram-dugum-karar {
+    fill: #eff6ff;
+}
+
+.akisma-diagram-kod {
+    font-weight: 700;
+    font-size: 0.95rem;
+    fill: #1d4ed8;
+}
+
+.akisma-diagram-baslik {
+    font-size: 0.85rem;
+    fill: #1f2937;
+}
+
+.akisma-diagram-rol {
+    font-size: 0.75rem;
+    fill: #475569;
+}
+
+.akisma-diagram-etiket {
+    font-size: 0.8rem;
+    fill: #1d4ed8;
+    font-weight: 600;
+}
+
+@media (max-width: 1024px) {
+    .akisma-editor {
+        grid-template-columns: 1fr;
+    }
+
+    .akisma-baslangic-panel {
+        grid-column: 1 / span 1;
+    }
 }
 
 .akisma-editor-bos {
