@@ -45,6 +45,11 @@ public class ApplicationDbContext : DbContext
             entity.ToTable("Department");
             entity.Property(d => d.Name).IsRequired().HasMaxLength(150);
             entity.HasIndex(d => d.Name).IsUnique();
+
+            entity.HasMany(d => d.Users)
+                .WithOne(u => u.Department)
+                .HasForeignKey(u => u.DepartmentId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<UserProfile>(entity =>
@@ -54,7 +59,7 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(u => u.UserName).IsUnique();
 
             entity.HasOne(u => u.Department)
-                .WithMany(d => d.Users)
+                .WithMany()
                 .HasForeignKey(u => u.DepartmentId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
