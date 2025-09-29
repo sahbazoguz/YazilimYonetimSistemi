@@ -132,13 +132,14 @@ else if (kullaniciBirim && Model.Talep is not null)
                 <a class="buton-link" asp-action="Gorevlendir" asp-route-id="@Model.Talep!.Id">Ekip Görevlendir</a>
             </p>
         }
-        <div class="algoritma-blok">
-            <h3>Algoritma Akışı</h3>
-            <div class="algoritma-gorunum" id="algoritma-gorunum-@Model.Talep!.Id" data-algorithm-display data-algorithm-json="@Model.AlgorithmJson">
-                <p class="yardim-metin" data-algorithm-empty>Henüz adım eklenmedi.</p>
-                <div class="algoritma-diagramlar" data-algorithm-diagrams></div>
-                <div class="algoritma-adim-ozet" data-algorithm-summary></div>
-            </div>
+        <div class="algoritma-baglanti">
+            <h3>Algoritma Tasarımı</h3>
+            <p>
+                <a class="buton-link" href="https://ornek.univ.tr/algoritma-editoru" target="_blank" rel="noopener">
+                    Algoritma Tasarım Aracını Aç
+                </a>
+            </p>
+            <p class="yardim-metin">Algoritma akışları harici editör üzerinden yönetilecektir.</p>
         </div>
         <div class="kilavuz-blok">
             <h3>Kılavuzlar</h3>
@@ -178,116 +179,6 @@ else if (kullaniciBirim && Model.Talep is not null)
     </section>
 }
 
-@if (Model.Proje is not null && (User.IsInRole(RoleConstants.Roles.Yazilimci) || User.IsInRole(RoleConstants.Roles.BirimKullanicisi)))
-{
-    var algoritmaKilitli = ViewData["AlgoritmaButonPasif"] as bool? ?? false;
-    var algorithmExampleJson = @"{
-  ""flows"": [
-    { ""name"": ""Ana Akış"", ""startCode"": ""A1"" },
-    { ""name"": ""Bakım Süreci"", ""startCode"": ""B1"" }
-  ],
-  ""steps"": [
-    {
-      ""code"": ""A1"",
-      ""type"": ""Normal"",
-      ""title"": ""Talep Oluşturma"",
-      ""description"": ""Birim kullanıcısı talebi girer."",
-      ""role"": ""Birim Kullanıcısı"",
-      ""nextCode"": ""A2""
-    },
-    {
-      ""code"": ""A2"",
-      ""type"": ""Decision"",
-      ""title"": ""Birim Yetkilisi Onayı"",
-      ""role"": ""Birim Yetkilisi"",
-      ""branches"": [
-        { ""label"": ""Evet"", ""targetCode"": ""A3"" },
-        { ""label"": ""Hayır"", ""targetCode"": ""A5"" }
-      ]
-    },
-    {
-      ""code"": ""A3"",
-      ""type"": ""Normal"",
-      ""title"": ""Teknik Değerlendirme"",
-      ""description"": ""Üç değerlendirici rapor hazırlar."",
-      ""role"": ""Değerlendirme Ekibi"",
-      ""nextCode"": ""A4""
-    },
-    {
-      ""code"": ""A4"",
-      ""type"": ""Normal"",
-      ""title"": ""Başkan Kararı"",
-      ""role"": ""Değerlendirme Başkanı"",
-      ""nextCode"": ""A6""
-    },
-    {
-      ""code"": ""A5"",
-      ""type"": ""Normal"",
-      ""title"": ""Talep Kapatma"",
-      ""role"": ""Birim Yetkilisi""
-    },
-    {
-      ""code"": ""A6"",
-      ""type"": ""Normal"",
-      ""title"": ""Geliştirme"",
-      ""description"": ""Yazılım ekibi geliştirme yapar."",
-      ""role"": ""Yazılım Ekibi"",
-      ""nextCode"": ""A7""
-    },
-    {
-      ""code"": ""A7"",
-      ""type"": ""Decision"",
-      ""title"": ""Test Sonucu"",
-      ""role"": ""Birim Kullanıcısı"",
-      ""branches"": [
-        { ""label"": ""Başarılı"", ""targetCode"": ""B1"" },
-        { ""label"": ""Revizyon"", ""targetCode"": ""A6"" }
-      ]
-    },
-    {
-      ""code"": ""B1"",
-      ""type"": ""Normal"",
-      ""title"": ""Canlı Kullanım"",
-      ""description"": ""Kullanım kılavuzu paylaşılır."",
-      ""role"": ""Birim""
-    }
-  ]
-}";
-    <section class="form-alani">
-        <h2>Algoritma Tasarımı</h2>
-        <form asp-action="AlgoritmaGuncelle" asp-route-id="@Model.Talep!.Id" method="post" data-algorithm-form data-algorithm-readonly="@(algoritmaKilitli.ToString().ToLowerInvariant())" data-algorithm-diagram-target="#algoritma-editor-diagram-@Model.Talep!.Id" data-algorithm-preview="#algoritma-gorunum-@Model.Talep!.Id">
-            <input type="hidden" name="algoritmaJson" value="@Model.AlgorithmJson" data-algorithm-input />
-            <div class="algoritma-editor" data-algorithm-editor>
-                <section class="algoritma-editor-akis">
-                    <header>
-                        <h3>Akışlar</h3>
-                        <button type="button" class="buton-link" data-algorithm-add-flow @(algoritmaKilitli ? "disabled" : null)>Yeni Akış</button>
-                    </header>
-                    <div class="algoritma-flow-list" data-algorithm-flow-list></div>
-                    <p class="yardim-metin">Her akış için başlangıç adımını seçin. İhtiyaç halinde aynı adımı birden fazla akışta kullanabilirsiniz.</p>
-                </section>
-                <section class="algoritma-editor-adimlar">
-                    <header>
-                        <h3>Adımlar</h3>
-                        <button type="button" class="buton-link" data-algorithm-add-step @(algoritmaKilitli ? "disabled" : null)>Yeni Adım</button>
-                    </header>
-                    <div class="algoritma-step-list" data-algorithm-step-list></div>
-                </section>
-            </div>
-            <p class="yardim-metin">Normal adımlar tek bir sonraki adıma bağlanır. Karar adımlarında her seçenek için hedef adımı belirtin. Kodlar otomatik olarak A1, A2 şeklinde atanır.</p>
-            <details class="algoritma-ornek">
-                <summary>Örnek algoritma JSON'unu görüntüle</summary>
-                <pre class="kod-blok">@Html.Raw(algorithmExampleJson)</pre>
-            </details>
-            @if (algoritmaKilitli)
-            {
-                <p class="bilgi-kutu uyari">Algoritma düzenleme yetkisi başkan onayı sonrası aktif olur.</p>
-            }
-            <div class="algoritma-editor-diyagram" id="algoritma-editor-diagram-@Model.Talep!.Id" data-algorithm-diagrams></div>
-            <button type="submit" @(algoritmaKilitli ? "disabled" : null)>Algoritmayı Kaydet</button>
-        </form>
-    </section>
-}
 @if (Model.Proje is not null && User.IsInRole(RoleConstants.Roles.Yazilimci))
 {
     <section class="form-alani">
