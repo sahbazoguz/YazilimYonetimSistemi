@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace UludagSoftwareTracking.Models.Entities;
 
@@ -22,5 +23,6 @@ public class Department
 
     public ICollection<Software> Softwares { get; set; } = new List<Software>();
 
+    [InverseProperty(nameof(UserProfile.Department))]
     public ICollection<UserProfile> Users { get; set; } = new List<UserProfile>();
 }

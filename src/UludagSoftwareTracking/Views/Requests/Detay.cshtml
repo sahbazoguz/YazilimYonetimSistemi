@@ -134,13 +134,10 @@ else if (kullaniciBirim && Model.Talep is not null)
         }
         <div class="algoritma-blok">
             <h3>Algoritma Akışı</h3>
-            <div class="akisma-onizleme" id="algoritma-onizleme-@Model.Talep!.Id" data-flow-preview data-flow-source="@Model.AlgorithmJson">
-                <p class="yardim-metin">Henüz adım eklenmedi.</p>
-            </div>
-            <div class="akisma-diagram-wrapper">
-                <h4>Otomatik Akış Diyagramı</h4>
-                <p class="yardim-metin">Girilen adımlardan Mermaid tabanlı akış diyagramları üretilir; tanımladığınız her akış ayrı bir şema olarak gösterilir.</p>
-                <div class="akisma-diagram" id="algoritma-diagram-@Model.Talep!.Id" data-flow-diagram data-flow-source="@Model.AlgorithmJson"></div>
+            <div class="algoritma-gorunum" id="algoritma-gorunum-@Model.Talep!.Id" data-algorithm-display data-algorithm-json="@Model.AlgorithmJson">
+                <p class="yardim-metin" data-algorithm-empty>Henüz adım eklenmedi.</p>
+                <div class="algoritma-diagramlar" data-algorithm-diagrams></div>
+                <div class="algoritma-adim-ozet" data-algorithm-summary></div>
             </div>
         </div>
         <div class="kilavuz-blok">
@@ -186,126 +183,111 @@ else if (kullaniciBirim && Model.Talep is not null)
     var algoritmaKilitli = ViewData["AlgoritmaButonPasif"] as bool? ?? false;
     var algorithmExampleJson = @"{
   ""flows"": [
-    { ""label"": ""Yeni Talep Akışı"", ""startCode"": ""A1"" },
-    { ""label"": ""Bakım Süreci"", ""startCode"": ""B1"" }
+    { ""name"": ""Ana Akış"", ""startCode"": ""A1"" },
+    { ""name"": ""Bakım Süreci"", ""startCode"": ""B1"" }
   ],
   ""steps"": [
     {
       ""code"": ""A1"",
       ""type"": ""Normal"",
       ""title"": ""Talep Oluşturma"",
-      ""description"": ""Birim kullanıcısı yeni talep formunu doldurur."",
+      ""description"": ""Birim kullanıcısı talebi girer."",
       ""role"": ""Birim Kullanıcısı"",
-      ""next"": ""A2""
+      ""nextCode"": ""A2""
     },
     {
       ""code"": ""A2"",
       ""type"": ""Decision"",
       ""title"": ""Birim Yetkilisi Onayı"",
-      ""description"": ""Yetkili talebi onaylıyor mu?"",
       ""role"": ""Birim Yetkilisi"",
-      ""next"": {
-        ""Evet"": ""A3"",
-        ""Hayır"": ""A7""
-      }
+      ""branches"": [
+        { ""label"": ""Evet"", ""targetCode"": ""A3"" },
+        { ""label"": ""Hayır"", ""targetCode"": ""A5"" }
+      ]
     },
     {
       ""code"": ""A3"",
       ""type"": ""Normal"",
       ""title"": ""Teknik Değerlendirme"",
-      ""description"": ""Değerlendirme ekibi rapor hazırlar."",
+      ""description"": ""Üç değerlendirici rapor hazırlar."",
       ""role"": ""Değerlendirme Ekibi"",
-      ""next"": [""A4"", ""B2""]
+      ""nextCode"": ""A4""
     },
     {
       ""code"": ""A4"",
       ""type"": ""Normal"",
       ""title"": ""Başkan Kararı"",
-      ""description"": ""Başkan nihai kararı verir."",
       ""role"": ""Değerlendirme Başkanı"",
-      ""next"": ""A5""
+      ""nextCode"": ""A6""
     },
     {
       ""code"": ""A5"",
       ""type"": ""Normal"",
-      ""title"": ""Geliştirme"",
-      ""description"": ""Onaylanan talep yazılım ekibine aktarılır."",
-      ""role"": ""Yazılımcı"",
-      ""next"": ""A6""
+      ""title"": ""Talep Kapatma"",
+      ""role"": ""Birim Yetkilisi""
     },
     {
       ""code"": ""A6"",
       ""type"": ""Normal"",
-      ""title"": ""Kullanım Kılavuzu"",
-      ""description"": ""Birim kullanıcıları kılavuz yükler."",
-      ""role"": ""Birim Kullanıcısı"",
-      ""next"": null
+      ""title"": ""Geliştirme"",
+      ""description"": ""Yazılım ekibi geliştirme yapar."",
+      ""role"": ""Yazılım Ekibi"",
+      ""nextCode"": ""A7""
     },
     {
       ""code"": ""A7"",
-      ""type"": ""Normal"",
-      ""title"": ""Talep Kapanışı"",
-      ""description"": ""Reddedilen talep kapatılır."",
-      ""role"": ""Birim Yetkilisi"",
-      ""next"": null
+      ""type"": ""Decision"",
+      ""title"": ""Test Sonucu"",
+      ""role"": ""Birim Kullanıcısı"",
+      ""branches"": [
+        { ""label"": ""Başarılı"", ""targetCode"": ""B1"" },
+        { ""label"": ""Revizyon"", ""targetCode"": ""A6"" }
+      ]
     },
     {
       ""code"": ""B1"",
       ""type"": ""Normal"",
-      ""title"": ""Bakım Talebi"",
-      ""description"": ""Mevcut yazılım için bakım isteği alınır."",
-      ""role"": ""Birim Kullanıcısı"",
-      ""next"": ""B2""
-    },
-    {
-      ""code"": ""B2"",
-      ""type"": ""Normal"",
-      ""title"": ""Teknik İnceleme"",
-      ""description"": ""Bakım planı değerlendirilir."",
-      ""role"": ""Değerlendirme Ekibi"",
-      ""next"": ""B3""
-    },
-    {
-      ""code"": ""B3"",
-      ""type"": ""Normal"",
-      ""title"": ""Bakım Tamamlama"",
-      ""description"": ""Yazılım ekibi bakım çalışmasını tamamlar."",
-      ""role"": ""Yazılımcı"",
-      ""next"": ""A6""
+      ""title"": ""Canlı Kullanım"",
+      ""description"": ""Kullanım kılavuzu paylaşılır."",
+      ""role"": ""Birim""
     }
   ]
 }";
-
     <section class="form-alani">
-        <h2>Algoritma Tasarım Editörü</h2>
-        <form asp-action="AlgoritmaGuncelle" asp-route-id="@Model.Talep!.Id" method="post" data-flow-form data-flow-target="#algoritma-onizleme-@Model.Talep!.Id" data-flow-diagram-target="#algoritma-diagram-@Model.Talep!.Id">
-            <input type="hidden" name="algoritmaJson" value="@Model.AlgorithmJson" data-flow-input />
-            <div class="akisma-editor" data-flow-editor>
-                <ul class="akisma-adim-listesi" data-flow-list></ul>
-                <div class="akisma-baslangic-panel" data-flow-starts>
+        <h2>Algoritma Tasarımı</h2>
+        <form asp-action="AlgoritmaGuncelle" asp-route-id="@Model.Talep!.Id" method="post" data-algorithm-form data-algorithm-readonly="@(algoritmaKilitli.ToString().ToLowerInvariant())" data-algorithm-diagram-target="#algoritma-editor-diagram-@Model.Talep!.Id" data-algorithm-preview="#algoritma-gorunum-@Model.Talep!.Id">
+            <input type="hidden" name="algoritmaJson" value="@Model.AlgorithmJson" data-algorithm-input />
+            <div class="algoritma-editor" data-algorithm-editor>
+                <section class="algoritma-editor-akis">
                     <header>
-                        <h3>Başlangıç Akışları</h3>
-                        <button type="button" class="buton-link" data-flow-start-add>Yeni Akış</button>
+                        <h3>Akışlar</h3>
+                        <button type="button" class="buton-link" data-algorithm-add-flow @(algoritmaKilitli ? "disabled" : null)>Yeni Akış</button>
                     </header>
-                    <ul class="akisma-baslangic-listesi" data-flow-start-list></ul>
-                    <p class="yardim-metin">Her akış için bir başlangıç adımı seçin. Aynı adım birden fazla akışta kullanılabilir.</p>
-                </div>
-                <button type="button" class="buton-link" data-flow-add @(algoritmaKilitli ? "disabled=\"disabled\"" : string.Empty)>Yeni Adım Ekle</button>
+                    <div class="algoritma-flow-list" data-algorithm-flow-list></div>
+                    <p class="yardim-metin">Her akış için başlangıç adımını seçin. İhtiyaç halinde aynı adımı birden fazla akışta kullanabilirsiniz.</p>
+                </section>
+                <section class="algoritma-editor-adimlar">
+                    <header>
+                        <h3>Adımlar</h3>
+                        <button type="button" class="buton-link" data-algorithm-add-step @(algoritmaKilitli ? "disabled" : null)>Yeni Adım</button>
+                    </header>
+                    <div class="algoritma-step-list" data-algorithm-step-list></div>
+                </section>
             </div>
-            <p class="yardim-metin">Adımları sürükleyip bırakarak sıralayın; kod, başlık, açıklama, rol ve geçiş bilgilerini girdikçe JSON çıktısı ve Mermaid diyagramları otomatik güncellenir.</p>
-            <details class="akisma-ornek">
-                <summary>Örnek karar akışı JSON'unu görüntüle</summary>
+            <p class="yardim-metin">Normal adımlar tek bir sonraki adıma bağlanır. Karar adımlarında her seçenek için hedef adımı belirtin. Kodlar otomatik olarak A1, A2 şeklinde atanır.</p>
+            <details class="algoritma-ornek">
+                <summary>Örnek algoritma JSON'unu görüntüle</summary>
                 <pre class="kod-blok">@Html.Raw(algorithmExampleJson)</pre>
             </details>
             @if (algoritmaKilitli)
             {
                 <p class="bilgi-kutu uyari">Algoritma düzenleme yetkisi başkan onayı sonrası aktif olur.</p>
             }
+            <div class="algoritma-editor-diyagram" id="algoritma-editor-diagram-@Model.Talep!.Id" data-algorithm-diagrams></div>
             <button type="submit" @(algoritmaKilitli ? "disabled" : null)>Algoritmayı Kaydet</button>
         </form>
     </section>
 }
-
 @if (Model.Proje is not null && User.IsInRole(RoleConstants.Roles.Yazilimci))
 {
     <section class="form-alani">

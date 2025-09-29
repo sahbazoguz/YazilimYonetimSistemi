@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -16,9 +15,6 @@ namespace UludagSoftwareTracking.Services.Implementations;
 
 public class RequestWorkflowService : IRequestWorkflowService
 {
-    private const string StepTypeNormal = "Normal";
-    private const string StepTypeDecision = "Decision";
-
     private static readonly AssessmentStage[] RequiredEvaluatorStages =
     {
         AssessmentStage.DegerlendiriciBir,
@@ -968,38 +964,21 @@ public class RequestWorkflowService : IRequestWorkflowService
             ?? throw new InvalidOperationException("Kullanıcı bulunamadı");
     }
 
-    private static string BuildStepCode(int index) => $"A{index + 1}";
+    private static readonly AlgorithmDesignerModel EmptyAlgorithm = new();
 
-    private static string? NormalizeAlgorithmJson(string algorithmJson)
+    private static string NormalizeAlgorithmJson(string algorithmJson)
     {
-        if (string.IsNullOrWhiteSpace(algorithmJson))
-        {
-            return null;
-        }
+        var designer = ParseAlgorithmDesigner(algorithmJson);
+        var normalized = NormalizeAlgorithmDesigner(designer);
 
-        try
-        {
-            var designer = ParseAlgorithmDesigner(algorithmJson);
-            var normalized = NormalizeAlgorithmDesigner(designer);
-
-            if (normalized.Steps.Count == 0)
-            {
-                return null;
-            }
-
-            return JsonSerializer.Serialize(normalized, AlgorithmSerializerOptions);
-        }
-        catch (JsonException ex)
-        {
-            throw new InvalidOperationException("Algoritma akışı çözümlenemedi.", ex);
-        }
+        return JsonSerializer.Serialize(normalized, AlgorithmSerializerOptions);
     }
 
     private static string BuildAlgorithmJsonForView(string? algorithmNotes)
     {
         if (string.IsNullOrWhiteSpace(algorithmNotes))
         {
-            return JsonSerializer.Serialize(new AlgorithmDesignerModel(), AlgorithmSerializerOptions);
+            return JsonSerializer.Serialize(EmptyAlgorithm, AlgorithmSerializerOptions);
         }
 
         try
@@ -1008,65 +987,34 @@ public class RequestWorkflowService : IRequestWorkflowService
             var normalized = NormalizeAlgorithmDesigner(designer);
             return JsonSerializer.Serialize(normalized, AlgorithmSerializerOptions);
         }
-        catch (JsonException)
+        catch (InvalidOperationException)
         {
-            var fallback = NormalizeAlgorithmDesigner(new AlgorithmDesignerModel
-            {
-                Steps = new List<AlgorithmStepModel>
-                {
-                    new()
-                    {
-                        Title = "Akış",
-                        Description = algorithmNotes!.Trim(),
-                        Code = BuildStepCode(0),
-                        Type = StepTypeNormal
-                    }
-                }
-            });
-
-            return JsonSerializer.Serialize(fallback, AlgorithmSerializerOptions);
+            return JsonSerializer.Serialize(EmptyAlgorithm, AlgorithmSerializerOptions);
         }
     }
 
-    private static AlgorithmDesignerModel ParseAlgorithmDesigner(string json)
+    private static AlgorithmDesignerModel ParseAlgorithmDesigner(string? json)
     {
-        var node = JsonNode.Parse(json);
-
-        if (node is JsonArray array)
+        if (string.IsNullOrWhiteSpace(json))
         {
-            var steps = array.Deserialize<List<AlgorithmStepModel>>(AlgorithmSerializerOptions) ?? new List<AlgorithmStepModel>();
-            return new AlgorithmDesignerModel { Steps = steps };
+            return new AlgorithmDesignerModel();
         }
 
-        if (node is JsonObject obj)
+        try
         {
-            if (obj.TryGetPropertyValue("steps", out _))
-            {
-                var designer = obj.Deserialize<AlgorithmDesignerModel>(AlgorithmSerializerOptions)
-                    ?? new AlgorithmDesignerModel();
-
-                designer.Flows ??= new List<AlgorithmFlowModel>();
-                designer.Steps ??= new List<AlgorithmStepModel>();
-                return designer;
-            }
-
-            var singleStep = obj.Deserialize<AlgorithmStepModel>(AlgorithmSerializerOptions);
-            if (singleStep is not null)
-            {
-                return new AlgorithmDesignerModel
-                {
-                    Steps = new List<AlgorithmStepModel> { singleStep }
-                };
-            }
+            var designer = JsonSerializer.Deserialize<AlgorithmDesignerModel>(json, AlgorithmSerializerOptions);
+            return designer ?? new AlgorithmDesignerModel();
         }
-
-        return new AlgorithmDesignerModel();
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException("Algoritma verisi çözümlenemedi.", ex);
+        }
     }
 
     private static AlgorithmDesignerModel NormalizeAlgorithmDesigner(AlgorithmDesignerModel designer)
     {
-        var normalizedSteps = NormalizeAlgorithmSteps(designer.Steps ?? new List<AlgorithmStepModel>());
-        var normalizedFlows = NormalizeAlgorithmFlows(designer.Flows ?? new List<AlgorithmFlowModel>(), normalizedSteps);
+        var normalizedSteps = NormalizeAlgorithmSteps(designer.Steps);
+        var normalizedFlows = NormalizeAlgorithmFlows(designer.Flows, normalizedSteps);
 
         return new AlgorithmDesignerModel
         {
@@ -1075,308 +1023,174 @@ public class RequestWorkflowService : IRequestWorkflowService
         };
     }
 
-    private static List<AlgorithmStepModel> NormalizeAlgorithmSteps(IEnumerable<AlgorithmStepModel> steps)
+    private static List<AlgorithmStepModel> NormalizeAlgorithmSteps(IEnumerable<AlgorithmStepModel>? steps)
     {
-        var normalized = steps
-            .Where(s => !string.IsNullOrWhiteSpace(s.Title))
-            .Select(s => new AlgorithmStepModel
+        var result = new List<AlgorithmStepModel>();
+        if (steps is null)
+        {
+            return result;
+        }
+
+        var seenCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var step in steps)
+        {
+            if (step is null)
             {
-                Title = s.Title!.Trim(),
-                Description = string.IsNullOrWhiteSpace(s.Description) ? null : s.Description.Trim(),
-                Code = s.Code?.Trim() ?? string.Empty,
-                Type = NormalizeStepType(s.Type),
-                Role = NormalizeRole(s.Role),
-                Next = NormalizeNext(s.Next)
-            })
-            .ToList();
+                continue;
+            }
 
-        ApplyStepDefaults(normalized);
+            var code = step.Code?.Trim();
+            if (string.IsNullOrWhiteSpace(code))
+            {
+                continue;
+            }
 
-        return normalized;
+            code = code.ToUpperInvariant();
+            if (!seenCodes.Add(code))
+            {
+                continue;
+            }
+
+            var title = step.Title?.Trim();
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                continue;
+            }
+
+            var normalized = new AlgorithmStepModel
+            {
+                Code = code,
+                Title = title,
+                Type = step.Type == AlgorithmStepType.Decision ? AlgorithmStepType.Decision : AlgorithmStepType.Normal,
+                Description = string.IsNullOrWhiteSpace(step.Description) ? null : step.Description.Trim(),
+                Role = string.IsNullOrWhiteSpace(step.Role) ? null : step.Role.Trim(),
+                NextCode = null,
+                Branches = new List<AlgorithmBranchModel>()
+            };
+
+            if (normalized.Type == AlgorithmStepType.Normal)
+            {
+                var next = step.NextCode?.Trim();
+                if (!string.IsNullOrWhiteSpace(next))
+                {
+                    normalized.NextCode = next.ToUpperInvariant();
+                }
+            }
+            else if (step.Branches is not null)
+            {
+                foreach (var branch in step.Branches)
+                {
+                    if (branch is null)
+                    {
+                        continue;
+                    }
+
+                    var label = branch.Label?.Trim();
+                    var target = branch.TargetCode?.Trim();
+                    if (string.IsNullOrWhiteSpace(label) || string.IsNullOrWhiteSpace(target))
+                    {
+                        continue;
+                    }
+
+                    normalized.Branches.Add(new AlgorithmBranchModel
+                    {
+                        Label = label,
+                        TargetCode = target.ToUpperInvariant()
+                    });
+                }
+            }
+
+            result.Add(normalized);
+        }
+
+        var codes = new HashSet<string>(result.Select(s => s.Code), StringComparer.OrdinalIgnoreCase);
+
+        foreach (var step in result)
+        {
+            if (step.NextCode is not null && !codes.Contains(step.NextCode))
+            {
+                step.NextCode = null;
+            }
+
+            if (step.Type == AlgorithmStepType.Decision)
+            {
+                step.Branches = step.Branches
+                    .Where(b => codes.Contains(b.TargetCode))
+                    .ToList();
+            }
+        }
+
+        return result;
     }
 
-    private static List<AlgorithmFlowModel> NormalizeAlgorithmFlows(IEnumerable<AlgorithmFlowModel> flows, IReadOnlyList<AlgorithmStepModel> steps)
+    private static List<AlgorithmFlowModel> NormalizeAlgorithmFlows(IEnumerable<AlgorithmFlowModel>? flows, IReadOnlyCollection<AlgorithmStepModel> steps)
     {
-        var codes = new HashSet<string>(steps.Select(s => s.Code), StringComparer.OrdinalIgnoreCase);
         var result = new List<AlgorithmFlowModel>();
-        var seenCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var index = 0;
 
-        foreach (var flow in flows)
+        if (steps.Count == 0)
         {
-            if (flow is null)
+            return result;
+        }
+
+        var codes = new HashSet<string>(steps.Select(s => s.Code), StringComparer.OrdinalIgnoreCase);
+        var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (flows is not null)
+        {
+            foreach (var flow in flows)
             {
-                continue;
+                if (flow is null)
+                {
+                    continue;
+                }
+
+                var name = flow.Name?.Trim();
+                var start = flow.StartCode?.Trim();
+
+                if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(start))
+                {
+                    continue;
+                }
+
+                start = start.ToUpperInvariant();
+                if (!codes.Contains(start))
+                {
+                    continue;
+                }
+
+                result.Add(new AlgorithmFlowModel
+                {
+                    Name = EnsureUniqueFlowName(name, usedNames),
+                    StartCode = start
+                });
             }
+        }
 
-            var startCode = flow.StartCode?.Trim();
-            if (string.IsNullOrWhiteSpace(startCode) || !codes.Contains(startCode) || seenCodes.Contains(startCode))
-            {
-                continue;
-            }
-
-            var matchedCode = steps.FirstOrDefault(s => string.Equals(s.Code, startCode, StringComparison.OrdinalIgnoreCase))?.Code;
-            if (matchedCode is null)
-            {
-                continue;
-            }
-
-            var label = string.IsNullOrWhiteSpace(flow.Label)
-                ? $"Akış {index + 1}"
-                : flow.Label!.Trim();
-
+        if (result.Count == 0)
+        {
             result.Add(new AlgorithmFlowModel
             {
-                StartCode = matchedCode,
-                Label = label
+                Name = "Ana Akış",
+                StartCode = steps.First().Code
             });
+        }
 
-            seenCodes.Add(matchedCode);
+        return result;
+    }
+
+    private static string EnsureUniqueFlowName(string desiredName, ISet<string> usedNames)
+    {
+        var candidate = desiredName;
+        var index = 2;
+
+        while (!usedNames.Add(candidate))
+        {
+            candidate = $"{desiredName} ({index})";
             index++;
         }
 
-        if (result.Count == 0 && steps.Count > 0)
-        {
-            result.Add(new AlgorithmFlowModel
-            {
-                StartCode = steps[0].Code,
-                Label = "Ana Akış"
-            });
-        }
-
-        return result;
-    }
-
-    private static string NormalizeStepType(string? type)
-    {
-        return string.Equals(type, StepTypeDecision, StringComparison.OrdinalIgnoreCase)
-            ? StepTypeDecision
-            : StepTypeNormal;
-    }
-
-    private static string? NormalizeRole(string? role)
-    {
-        if (string.IsNullOrWhiteSpace(role))
-        {
-            return null;
-        }
-
-        var trimmed = role.Trim();
-        return trimmed.Length <= 100 ? trimmed : trimmed[..100];
-    }
-
-    private static JsonNode? NormalizeNext(JsonNode? next)
-    {
-        if (next is null)
-        {
-            return null;
-        }
-
-        if (next is JsonValue value)
-        {
-            if (value.GetValueKind() == JsonValueKind.Null)
-            {
-                return null;
-            }
-
-            var text = value.ToString().Trim();
-            return string.IsNullOrWhiteSpace(text) ? null : JsonValue.Create(text);
-        }
-
-        if (next is JsonArray array)
-        {
-            var sanitized = new JsonArray();
-            foreach (var item in array)
-            {
-                var normalizedItem = NormalizeBranchValue(item);
-                if (normalizedItem is JsonValue jsonValue)
-                {
-                    sanitized.Add(jsonValue.ToString());
-                }
-            }
-
-            return sanitized.Count > 0 ? sanitized : null;
-        }
-
-        if (next is JsonObject obj)
-        {
-            var result = new JsonObject();
-            foreach (var kvp in obj)
-            {
-                result[kvp.Key] = NormalizeBranchValue(kvp.Value);
-            }
-
-            return result;
-        }
-
-        try
-        {
-            return JsonNode.Parse(next.ToJsonString());
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-    }
-
-    private static void ApplyStepDefaults(IList<AlgorithmStepModel> steps)
-    {
-        var usedCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        for (var i = 0; i < steps.Count; i++)
-        {
-            var desired = string.IsNullOrWhiteSpace(steps[i].Code)
-                ? BuildStepCode(i)
-                : steps[i].Code.Trim();
-
-            var unique = EnsureUniqueCode(desired, usedCodes);
-            steps[i].Code = unique;
-            usedCodes.Add(unique);
-        }
-
-        for (var i = 0; i < steps.Count; i++)
-        {
-            var nextDefault = i < steps.Count - 1 ? steps[i + 1].Code : null;
-
-            if (string.Equals(steps[i].Type, StepTypeDecision, StringComparison.OrdinalIgnoreCase))
-            {
-                steps[i].Next = NormalizeDecisionNext(steps[i].Next, nextDefault);
-            }
-            else
-            {
-                steps[i].Next = NormalizeSequentialNext(steps[i].Next, nextDefault);
-            }
-        }
-    }
-
-    private static string EnsureUniqueCode(string desired, ISet<string> used)
-    {
-        var code = string.IsNullOrWhiteSpace(desired) ? BuildStepCode(used.Count) : desired;
-        var suffix = 1;
-
-        while (used.Contains(code))
-        {
-            code = $"{desired}_{suffix}";
-            suffix++;
-        }
-
-        return code;
-    }
-
-    private static JsonNode? NormalizeSequentialNext(JsonNode? next, string? fallback)
-    {
-        var normalized = NormalizeBranchValue(next);
-
-        if (normalized is null)
-        {
-            return string.IsNullOrWhiteSpace(fallback) ? null : JsonValue.Create(fallback);
-        }
-
-        if (normalized is JsonArray array && array.Count == 1 && array[0] is not null)
-        {
-            return JsonValue.Create(array[0]!.ToString());
-        }
-
-        return normalized;
-    }
-
-    private static JsonNode NormalizeDecisionNext(JsonNode? next, string? defaultYesTarget)
-    {
-        var result = new JsonObject
-        {
-            ["Evet"] = string.IsNullOrWhiteSpace(defaultYesTarget)
-                ? JsonValue.Create<string?>(null)
-                : JsonValue.Create(defaultYesTarget),
-            ["Hayır"] = JsonValue.Create<string?>(null)
-        };
-
-        if (next is JsonObject obj)
-        {
-            foreach (var kvp in obj)
-            {
-                if (string.Equals(kvp.Key, "Evet", StringComparison.OrdinalIgnoreCase))
-                {
-                    result["Evet"] = NormalizeBranchValue(kvp.Value) ?? JsonValue.Create<string?>(null);
-                }
-                else if (string.Equals(kvp.Key, "Hayır", StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(kvp.Key, "Hayir", StringComparison.OrdinalIgnoreCase))
-                {
-                    result["Hayır"] = NormalizeBranchValue(kvp.Value) ?? JsonValue.Create<string?>(null);
-                }
-                else
-                {
-                    result[kvp.Key] = NormalizeBranchValue(kvp.Value) ?? JsonValue.Create<string?>(null);
-                }
-            }
-
-            if (!result.ContainsKey("Evet"))
-            {
-                result["Evet"] = JsonValue.Create<string?>(null);
-            }
-
-            if (!result.ContainsKey("Hayır"))
-            {
-                result["Hayır"] = JsonValue.Create<string?>(null);
-            }
-
-            return result;
-        }
-
-        var normalized = NormalizeBranchValue(next);
-        if (normalized is not null)
-        {
-            result["Evet"] = normalized;
-        }
-
-        return result;
-    }
-
-    private static JsonNode? NormalizeBranchValue(JsonNode? node)
-    {
-        if (node is null)
-        {
-            return null;
-        }
-
-        if (node is JsonValue value)
-        {
-            if (value.GetValueKind() == JsonValueKind.Null)
-            {
-                return null;
-            }
-
-            var text = value.ToString().Trim();
-            return string.IsNullOrWhiteSpace(text) ? null : JsonValue.Create(text);
-        }
-
-        if (node is JsonArray array)
-        {
-            var sanitized = new JsonArray();
-            foreach (var item in array)
-            {
-                var normalized = NormalizeBranchValue(item);
-                if (normalized is JsonValue jsonValue)
-                {
-                    sanitized.Add(jsonValue.ToString());
-                }
-            }
-
-            return sanitized.Count > 0 ? sanitized : null;
-        }
-
-        if (node is JsonObject obj)
-        {
-            var result = new JsonObject();
-            foreach (var kvp in obj)
-            {
-                var normalized = NormalizeBranchValue(kvp.Value);
-                result[kvp.Key] = normalized ?? JsonValue.Create<string?>(null);
-            }
-
-            return result.Count > 0 ? result : null;
-        }
-
-        return null;
+        return candidate;
     }
 
     private async Task<List<UserProfile>> GetUsersByRolesAsync(CancellationToken cancellationToken, params UserRole[] roles)

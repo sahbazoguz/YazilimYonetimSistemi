@@ -5,11 +5,12 @@ namespace UludagSoftwareTracking.Models.ViewModels;
 
 public class AlgorithmFlowModel
 {
-    [StringLength(100)]
-    public string? Label { get; set; }
+    [Required]
+    [StringLength(80)]
+    public string Name { get; set; } = string.Empty;
 
     [Required]
-    [StringLength(50)]
+    [StringLength(10)]
     public string StartCode { get; set; } = string.Empty;
 }
 

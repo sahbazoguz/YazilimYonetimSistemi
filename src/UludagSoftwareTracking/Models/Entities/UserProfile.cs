@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace UludagSoftwareTracking.Models.Entities;
 
@@ -25,6 +26,8 @@ public class UserProfile
 
     public int? DepartmentId { get; set; }
 
+    [ForeignKey(nameof(DepartmentId))]
+    [InverseProperty(nameof(Department.Users))]
     public Department? Department { get; set; }
 
     [StringLength(25)]
