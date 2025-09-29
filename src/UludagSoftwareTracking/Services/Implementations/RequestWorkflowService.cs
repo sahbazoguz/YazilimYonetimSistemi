@@ -1065,8 +1065,8 @@ public class RequestWorkflowService : IRequestWorkflowService
 
     private static AlgorithmDesignerModel NormalizeAlgorithmDesigner(AlgorithmDesignerModel designer)
     {
-        var normalizedSteps = NormalizeAlgorithmSteps(designer.Steps ?? Array.Empty<AlgorithmStepModel>());
-        var normalizedFlows = NormalizeAlgorithmFlows(designer.Flows ?? Array.Empty<AlgorithmFlowModel>(), normalizedSteps);
+        var normalizedSteps = NormalizeAlgorithmSteps(designer.Steps ?? new List<AlgorithmStepModel>());
+        var normalizedFlows = NormalizeAlgorithmFlows(designer.Flows ?? new List<AlgorithmFlowModel>(), normalizedSteps);
 
         return new AlgorithmDesignerModel
         {
