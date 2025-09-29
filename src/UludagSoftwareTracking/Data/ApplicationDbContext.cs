@@ -59,7 +59,7 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(u => u.UserName).IsUnique();
 
             entity.HasOne(u => u.Department)
-                .WithMany()
+                .WithMany(d => d.Users)
                 .HasForeignKey(u => u.DepartmentId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
