@@ -1,7 +1,7 @@
 (function () {
     const STEP_TYPE_NORMAL = 'Normal';
     const STEP_TYPE_DECISION = 'Decision';
-    const SVG_NS = 'http://www.w3.org/2000/svg';
+    let mermaidInitialized = false;
 
     function getCsrfToken() {
         const meta = document.querySelector('meta[name="csrf-token"]');
@@ -493,44 +493,161 @@
         return { nodes, adjacency, edges, starts };
     }
 
-    function computeLevels(graph) {
-        const { nodes, adjacency, starts } = graph;
-        const levels = new Map();
+    function ensureMermaidInstance() {
+        const instance = window.mermaid;
+        if (!instance || typeof instance.initialize !== 'function') {
+            return null;
+        }
+
+        if (!mermaidInitialized) {
+            instance.initialize({
+                startOnLoad: false,
+                theme: 'default',
+                flowchart: {
+                    curve: 'basis',
+                    htmlLabels: true,
+                    nodeSpacing: 60,
+                    rankSpacing: 80
+                }
+            });
+            mermaidInitialized = true;
+        }
+
+        return instance;
+    }
+
+    function escapeMermaidText(text) {
+        if (typeof text !== 'string') {
+            return '';
+        }
+
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/\\/g, '\\\\')
+            .replace(/"/g, '\\"')
+            .replace(/\[/g, '\\[')
+            .replace(/\]/g, '\\]')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    function createMermaidIdMap(steps) {
+        const map = new Map();
+        const used = new Set();
+
+        steps.forEach((step, index) => {
+            const rawCode = typeof step.Code === 'string' && step.Code.length > 0
+                ? step.Code
+                : `Adim_${index + 1}`;
+            const base = rawCode.replace(/[^A-Za-z0-9_]/g, '_') || `Adim_${index + 1}`;
+            let candidate = base;
+            let suffix = 1;
+
+            while (used.has(candidate)) {
+                candidate = `${base}_${suffix}`;
+                suffix++;
+            }
+
+            used.add(candidate);
+            map.set(step.Code, candidate);
+        });
+
+        return map;
+    }
+
+    function buildFlowSubgraph(graph, startCode) {
+        const visited = new Set();
         const queue = [];
 
-        starts.forEach((code) => {
-            if (!levels.has(code)) {
-                levels.set(code, 0);
-                queue.push(code);
-            }
-        });
+        if (startCode && graph.nodes.has(startCode)) {
+            queue.push(startCode);
+        }
 
         while (queue.length > 0) {
             const current = queue.shift();
-            const currentLevel = levels.get(current) ?? 0;
-            const neighbours = adjacency.get(current) ?? new Set();
+            if (!current || visited.has(current) || !graph.nodes.has(current)) {
+                continue;
+            }
 
+            visited.add(current);
+            const neighbours = graph.adjacency.get(current) ?? new Set();
             neighbours.forEach((target) => {
-                if (!nodes.has(target)) {
-                    return;
-                }
-
-                if (!levels.has(target) || (levels.get(target) ?? 0) > currentLevel + 1) {
-                    levels.set(target, currentLevel + 1);
+                if (!visited.has(target) && graph.nodes.has(target)) {
                     queue.push(target);
                 }
             });
         }
 
-        let fallbackLevel = (Math.max(-1, ...levels.values()) + 1);
-        nodes.forEach((_step, code) => {
-            if (!levels.has(code)) {
-                levels.set(code, fallbackLevel);
-                fallbackLevel++;
+        const nodes = Array.from(visited)
+            .map((code) => graph.nodes.get(code))
+            .filter((step) => step && typeof step.Code === 'string');
+
+        const edges = graph.edges.filter((edge) => visited.has(edge.from) && visited.has(edge.to));
+
+        return { nodes, edges };
+    }
+
+    function buildMermaidDefinition(flow, graph) {
+        if (!flow || typeof flow.StartCode !== 'string') {
+            return null;
+        }
+
+        const { nodes, edges } = buildFlowSubgraph(graph, flow.StartCode);
+        if (nodes.length === 0) {
+            return null;
+        }
+
+        const idMap = createMermaidIdMap(nodes);
+        const lines = ['flowchart TD'];
+
+        nodes.forEach((step) => {
+            const id = idMap.get(step.Code) ?? step.Code;
+            const parts = [];
+            const title = step.Title && step.Title.trim().length > 0 ? step.Title.trim() : 'Adım';
+            parts.push(`${step.Code}: ${title}`);
+
+            if (step.Role && step.Role.trim().length > 0) {
+                parts.push(`Rol: ${step.Role.trim()}`);
+            }
+
+            if (step.Description && step.Description.trim().length > 0) {
+                parts.push(step.Description.trim());
+            }
+
+            const label = parts.map(escapeMermaidText).join('\\n');
+            const nodeDefinition = step.Type === STEP_TYPE_DECISION
+                ? `${id}{"${label}"}`
+                : `${id}["${label}"]`;
+            lines.push(nodeDefinition);
+        });
+
+        const seenEdges = new Set();
+        edges.forEach((edge) => {
+            const fromId = idMap.get(edge.from) ?? edge.from;
+            const toId = idMap.get(edge.to) ?? edge.to;
+
+            if (!fromId || !toId) {
+                return;
+            }
+
+            const label = edge.label && edge.label.trim().length > 0
+                ? escapeMermaidText(edge.label.trim())
+                : '';
+            const key = `${fromId}->${toId}|${label}`;
+            if (seenEdges.has(key)) {
+                return;
+            }
+            seenEdges.add(key);
+
+            if (label.length > 0) {
+                lines.push(`${fromId} -->|${label}| ${toId}`);
+            }
+            else {
+                lines.push(`${fromId} --> ${toId}`);
             }
         });
 
-        return levels;
+        return lines.join('\n');
     }
 
     function renderFlowDiagram(container, designer) {
@@ -549,171 +666,80 @@
         }
 
         const graph = buildGraph(designer);
-        const levels = computeLevels(graph);
+        const flows = Array.isArray(designer.flows) && designer.flows.length > 0
+            ? designer.flows
+            : [{ Label: 'Ana Akış', StartCode: designer.steps[0].Code }];
 
-        const levelBuckets = new Map();
-        levels.forEach((level, code) => {
-            if (!levelBuckets.has(level)) {
-                levelBuckets.set(level, []);
-            }
-            levelBuckets.get(level)?.push(code);
-        });
+        const mermaidApi = ensureMermaidInstance();
+        const hasRenderer = !!mermaidApi && typeof mermaidApi.render === 'function';
+        let rendered = false;
 
-        const sortedLevels = Array.from(levelBuckets.keys()).sort((a, b) => a - b);
-        const columnWidth = 220;
-        const rowHeight = 140;
-        const nodeWidth = 150;
-        const nodeHeight = 70;
-
-        const width = Math.max(320, sortedLevels.length * columnWidth + 120);
-        let maxRows = 1;
-        levelBuckets.forEach((codes) => {
-            if (codes.length > maxRows) {
-                maxRows = codes.length;
-            }
-        });
-        const height = Math.max(240, maxRows * rowHeight + 120);
-
-        const svg = document.createElementNS(SVG_NS, 'svg');
-        svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
-        svg.classList.add('akisma-diagram-svg');
-
-        const defs = document.createElementNS(SVG_NS, 'defs');
-        const marker = document.createElementNS(SVG_NS, 'marker');
-        marker.setAttribute('id', 'akisma-arrow');
-        marker.setAttribute('markerWidth', '10');
-        marker.setAttribute('markerHeight', '10');
-        marker.setAttribute('refX', '10');
-        marker.setAttribute('refY', '3');
-        marker.setAttribute('orient', 'auto');
-        const markerPath = document.createElementNS(SVG_NS, 'path');
-        markerPath.setAttribute('d', 'M0,0 L10,3 L0,6 Z');
-        markerPath.setAttribute('fill', '#2563eb');
-        marker.appendChild(markerPath);
-        defs.appendChild(marker);
-        svg.appendChild(defs);
-
-        const positions = new Map();
-        sortedLevels.forEach((level, columnIndex) => {
-            const codes = levelBuckets.get(level) ?? [];
-            codes.sort();
-            codes.forEach((code, rowIndex) => {
-                const x = 100 + columnIndex * columnWidth;
-                const y = 80 + rowIndex * rowHeight;
-                positions.set(code, { x, y });
-            });
-        });
-
-        graph.edges.forEach((edge) => {
-            if (!positions.has(edge.from) || !positions.has(edge.to)) {
+        flows.forEach((flow, index) => {
+            if (!flow || typeof flow.StartCode !== 'string' || !graph.nodes.has(flow.StartCode)) {
                 return;
             }
 
-            const from = positions.get(edge.from);
-            const to = positions.get(edge.to);
-            if (!from || !to) {
+            const definition = buildMermaidDefinition(flow, graph);
+            const wrapper = document.createElement('div');
+            wrapper.className = 'akisma-diagram-parca';
+
+            const heading = document.createElement('h5');
+            heading.className = 'akisma-diagram-parca-baslik';
+            heading.textContent = flow.Label && flow.Label.length > 0
+                ? flow.Label
+                : `Akış ${index + 1}`;
+            wrapper.appendChild(heading);
+
+            if (!definition) {
+                const warning = document.createElement('p');
+                warning.className = 'akisma-diagram-uyari';
+                warning.textContent = 'Bu akış için görselleştirilecek adım bulunamadı.';
+                wrapper.appendChild(warning);
+                container.appendChild(wrapper);
+                rendered = true;
                 return;
             }
 
-            const startX = from.x + nodeWidth / 2;
-            const startY = from.y;
-            const endX = to.x - nodeWidth / 2;
-            const endY = to.y;
-
-            if (edge.from === edge.to) {
-                const loopRadius = 30;
-                const loopPath = document.createElementNS(SVG_NS, 'path');
-                loopPath.setAttribute('d', `M ${startX} ${startY} C ${startX + loopRadius} ${startY - loopRadius}, ${startX - loopRadius} ${startY - loopRadius}, ${startX - loopRadius} ${startY}`);
-                loopPath.setAttribute('fill', 'none');
-                loopPath.setAttribute('stroke', '#2563eb');
-                loopPath.setAttribute('stroke-width', '2');
-                loopPath.setAttribute('marker-end', 'url(#akisma-arrow)');
-                svg.appendChild(loopPath);
-
-                if (edge.label) {
-                    const label = document.createElementNS(SVG_NS, 'text');
-                    label.setAttribute('x', startX);
-                    label.setAttribute('y', startY - loopRadius - 8);
-                    label.setAttribute('text-anchor', 'middle');
-                    label.classList.add('akisma-diagram-etiket');
-                    label.textContent = edge.label;
-                    svg.appendChild(label);
-                }
-
+            if (!hasRenderer) {
+                const pre = document.createElement('pre');
+                pre.className = 'akisma-diagram-kod';
+                pre.textContent = definition;
+                wrapper.appendChild(pre);
+                container.appendChild(wrapper);
+                rendered = true;
                 return;
             }
 
-            const offset = Math.max(40, Math.abs(endX - startX) / 3);
+            const host = document.createElement('div');
+            host.className = 'akisma-mermaid';
+            wrapper.appendChild(host);
+            container.appendChild(wrapper);
 
-            const path = document.createElementNS(SVG_NS, 'path');
-            path.setAttribute('d', `M ${startX} ${startY} C ${startX + offset} ${startY}, ${endX - offset} ${endY}, ${endX} ${endY}`);
-            path.setAttribute('fill', 'none');
-            path.setAttribute('stroke', '#2563eb');
-            path.setAttribute('stroke-width', '2');
-            path.setAttribute('marker-end', 'url(#akisma-arrow)');
-            svg.appendChild(path);
+            const renderId = `mermaid-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+            mermaidApi.render(renderId, definition)
+                .then(({ svg, bindFunctions }) => {
+                    host.innerHTML = svg;
+                    if (typeof bindFunctions === 'function') {
+                        bindFunctions(host);
+                    }
+                })
+                .catch((error) => {
+                    console.warn('Mermaid diyagramı oluşturulamadı:', error);
+                    const fallback = document.createElement('pre');
+                    fallback.className = 'akisma-diagram-kod';
+                    fallback.textContent = definition;
+                    host.replaceWith(fallback);
+                });
 
-            if (edge.label) {
-                const label = document.createElementNS(SVG_NS, 'text');
-                label.setAttribute('x', (startX + endX) / 2);
-                label.setAttribute('y', (startY + endY) / 2 - 10);
-                label.setAttribute('text-anchor', 'middle');
-                label.classList.add('akisma-diagram-etiket');
-                label.textContent = edge.label;
-                svg.appendChild(label);
-            }
+            rendered = true;
         });
 
-        graph.nodes.forEach((step, code) => {
-            const position = positions.get(code);
-            if (!position) {
-                return;
-            }
-
-            const group = document.createElementNS(SVG_NS, 'g');
-            group.setAttribute('transform', `translate(${position.x - nodeWidth / 2}, ${position.y - nodeHeight / 2})`);
-
-            const rect = document.createElementNS(SVG_NS, 'rect');
-            rect.setAttribute('width', String(nodeWidth));
-            rect.setAttribute('height', String(nodeHeight));
-            rect.setAttribute('rx', '8');
-            rect.setAttribute('ry', '8');
-            rect.classList.add('akisma-diagram-dugum');
-            if (step.Type === STEP_TYPE_DECISION) {
-                rect.classList.add('akisma-diagram-dugum-karar');
-            }
-            group.appendChild(rect);
-
-            const codeText = document.createElementNS(SVG_NS, 'text');
-            codeText.setAttribute('x', String(nodeWidth / 2));
-            codeText.setAttribute('y', '24');
-            codeText.setAttribute('text-anchor', 'middle');
-            codeText.classList.add('akisma-diagram-kod');
-            codeText.textContent = step.Code;
-            group.appendChild(codeText);
-
-            const titleText = document.createElementNS(SVG_NS, 'text');
-            titleText.setAttribute('x', String(nodeWidth / 2));
-            titleText.setAttribute('y', '46');
-            titleText.setAttribute('text-anchor', 'middle');
-            titleText.classList.add('akisma-diagram-baslik');
-            titleText.textContent = step.Title.length > 0 ? step.Title : '—';
-            group.appendChild(titleText);
-
-            if (step.Role && step.Role.length > 0) {
-                const roleText = document.createElementNS(SVG_NS, 'text');
-                roleText.setAttribute('x', String(nodeWidth / 2));
-                roleText.setAttribute('y', '62');
-                roleText.setAttribute('text-anchor', 'middle');
-                roleText.classList.add('akisma-diagram-rol');
-                roleText.textContent = step.Role;
-                group.appendChild(roleText);
-            }
-
-            svg.appendChild(group);
-        });
-
-        container.appendChild(svg);
+        if (!rendered) {
+            const empty = document.createElement('p');
+            empty.className = 'yardim-metin';
+            empty.textContent = 'Geçerli başlangıç adımı bulunamadı.';
+            container.appendChild(empty);
+        }
     }
 
     function initFlowEditor(form) {

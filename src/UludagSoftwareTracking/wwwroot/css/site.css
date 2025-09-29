@@ -663,53 +663,64 @@ body {
 .akisma-diagram-wrapper {
     margin-top: 1.25rem;
     border: 1px solid #dbeafe;
-    border-radius: 8px;
+    border-radius: 12px;
     background-color: #f0f6ff;
-    padding: 1rem;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.akisma-diagram-wrapper > h4 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #1d4ed8;
 }
 
 .akisma-diagram {
-    width: 100%;
-    min-height: 260px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.akisma-diagram-parca {
+    background-color: #ffffff;
+    border-radius: 10px;
+    border: 1px solid #bfdbfe;
+    box-shadow: 0 1px 4px rgba(37, 99, 235, 0.15);
+    padding: 1rem;
+}
+
+.akisma-diagram-parca-baslik {
+    margin: 0 0 0.75rem 0;
+    font-size: 1rem;
+    color: #1f3d7a;
+}
+
+.akisma-mermaid {
     overflow-x: auto;
 }
 
-.akisma-diagram-svg {
+.akisma-mermaid svg {
     width: 100%;
     height: auto;
-}
-
-.akisma-diagram-dugum {
-    fill: #ffffff;
-    stroke: #2563eb;
-    stroke-width: 1.5;
-    filter: drop-shadow(0 1px 2px rgba(37, 99, 235, 0.25));
-}
-
-.akisma-diagram-dugum-karar {
-    fill: #eff6ff;
+    min-width: 320px;
 }
 
 .akisma-diagram-kod {
-    font-weight: 700;
-    font-size: 0.95rem;
-    fill: #1d4ed8;
-}
-
-.akisma-diagram-baslik {
+    margin: 0;
+    padding: 0.75rem;
+    background-color: #1e3a8a;
+    color: #f8fafc;
+    border-radius: 8px;
+    overflow-x: auto;
     font-size: 0.85rem;
-    fill: #1f2937;
 }
 
-.akisma-diagram-rol {
-    font-size: 0.75rem;
-    fill: #475569;
-}
-
-.akisma-diagram-etiket {
-    font-size: 0.8rem;
-    fill: #1d4ed8;
-    font-weight: 600;
+.akisma-diagram-uyari {
+    margin: 0;
+    color: #b45309;
+    font-size: 0.9rem;
 }
 
 @media (max-width: 1024px) {

@@ -139,6 +139,7 @@ else if (kullaniciBirim && Model.Talep is not null)
             </div>
             <div class="akisma-diagram-wrapper">
                 <h4>Otomatik Akış Diyagramı</h4>
+                <p class="yardim-metin">Girilen adımlardan Mermaid tabanlı akış diyagramları üretilir; tanımladığınız her akış ayrı bir şema olarak gösterilir.</p>
                 <div class="akisma-diagram" id="algoritma-diagram-@Model.Talep!.Id" data-flow-diagram data-flow-source="@Model.AlgorithmJson"></div>
             </div>
         </div>
@@ -291,7 +292,7 @@ else if (kullaniciBirim && Model.Talep is not null)
                 </div>
                 <button type="button" class="buton-link" data-flow-add @(algoritmaKilitli ? "disabled=\"disabled\"" : string.Empty)>Yeni Adım Ekle</button>
             </div>
-            <p class="yardim-metin">Adımları sürükleyip bırakarak sıralayın, her adım için kod, başlık, açıklama, rol ve geçiş bilgilerini girin.</p>
+            <p class="yardim-metin">Adımları sürükleyip bırakarak sıralayın; kod, başlık, açıklama, rol ve geçiş bilgilerini girdikçe JSON çıktısı ve Mermaid diyagramları otomatik güncellenir.</p>
             <details class="akisma-ornek">
                 <summary>Örnek karar akışı JSON'unu görüntüle</summary>
                 <pre class="kod-blok">@Html.Raw(algorithmExampleJson)</pre>
