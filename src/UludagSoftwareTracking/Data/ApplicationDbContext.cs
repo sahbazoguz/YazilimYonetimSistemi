@@ -164,8 +164,11 @@ public class ApplicationDbContext : DbContext
         {
             entity.Property(s => s.SequenceCode).IsRequired().HasMaxLength(20);
             entity.Property(s => s.Description).IsRequired().HasMaxLength(500);
+            entity.Property(s => s.StepType).HasConversion<int>();
             entity.Property(s => s.Role).HasMaxLength(150);
             entity.Property(s => s.NextStepCode).HasMaxLength(50);
+            entity.Property(s => s.NextStepYesCode).HasMaxLength(50);
+            entity.Property(s => s.NextStepNoCode).HasMaxLength(50);
             entity.HasOne(s => s.WorkflowDefinition)
                 .WithMany(w => w.Steps)
                 .HasForeignKey(s => s.WorkflowDefinitionId)

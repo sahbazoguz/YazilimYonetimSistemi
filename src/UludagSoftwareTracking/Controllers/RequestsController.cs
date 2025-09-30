@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -443,10 +444,12 @@ public class RequestsController : Controller
 
         try
         {
-            var payload = JsonSerializer.Deserialize<WorkflowEditorPostModel>(isAkisiJson, new JsonSerializerOptions
+            var options = new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
-            });
+            };
+            options.Converters.Add(new JsonStringEnumConverter());
+            var payload = JsonSerializer.Deserialize<WorkflowEditorPostModel>(isAkisiJson, options);
             if (payload is null)
             {
                 TempData["Warning"] = "İş akışı verisi çözümlenemedi.";

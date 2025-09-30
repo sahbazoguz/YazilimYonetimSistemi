@@ -961,8 +961,11 @@ public class RequestWorkflowService : IRequestWorkflowService
                         Id = s.Id,
                         SequenceCode = s.SequenceCode,
                         Description = s.Description,
+                        StepType = s.StepType,
                         Role = s.Role,
-                        NextStepCode = s.NextStepCode
+                        NextStepCode = s.NextStepCode,
+                        NextStepYesCode = s.NextStepYesCode,
+                        NextStepNoCode = s.NextStepNoCode
                     })
                     .ToArray()
             })
@@ -1037,22 +1040,58 @@ public class RequestWorkflowService : IRequestWorkflowService
                 }
             }
 
+            var stepType = Enum.IsDefined(typeof(WorkflowStepType), step.StepType)
+                ? step.StepType
+                : WorkflowStepType.Normal;
+
             var role = step.Role?.Trim();
             var next = step.NextStepCode?.Trim();
+            var nextYes = step.NextStepYesCode?.Trim();
+            var nextNo = step.NextStepNoCode?.Trim();
 
-            if (!string.IsNullOrWhiteSpace(next))
+            if (stepType == WorkflowStepType.KararNoktasi)
             {
-                next = next.ToUpperInvariant();
+                if (!string.IsNullOrWhiteSpace(nextYes))
+                {
+                    nextYes = nextYes.ToUpperInvariant();
+                }
+
+                if (!string.IsNullOrWhiteSpace(nextNo))
+                {
+                    nextNo = nextNo.ToUpperInvariant();
+                }
+
+                result.Add(new WorkflowEditorStep
+                {
+                    Id = step.Id,
+                    SequenceCode = TrimToLength(code, 20),
+                    Description = TrimToLength(description, 500),
+                    StepType = WorkflowStepType.KararNoktasi,
+                    Role = TrimToLengthOrNull(role, 150),
+                    NextStepCode = null,
+                    NextStepYesCode = TrimToLengthOrNull(nextYes, 50),
+                    NextStepNoCode = TrimToLengthOrNull(nextNo, 50)
+                });
             }
-
-            result.Add(new WorkflowEditorStep
+            else
             {
-                Id = step.Id,
-                SequenceCode = TrimToLength(code, 20),
-                Description = TrimToLength(description, 500),
-                Role = TrimToLengthOrNull(role, 150),
-                NextStepCode = TrimToLengthOrNull(next, 50)
-            });
+                if (!string.IsNullOrWhiteSpace(next))
+                {
+                    next = next.ToUpperInvariant();
+                }
+
+                result.Add(new WorkflowEditorStep
+                {
+                    Id = step.Id,
+                    SequenceCode = TrimToLength(code, 20),
+                    Description = TrimToLength(description, 500),
+                    StepType = WorkflowStepType.Normal,
+                    Role = TrimToLengthOrNull(role, 150),
+                    NextStepCode = TrimToLengthOrNull(next, 50),
+                    NextStepYesCode = null,
+                    NextStepNoCode = null
+                });
+            }
         }
 
         return result;
@@ -1108,8 +1147,11 @@ public class RequestWorkflowService : IRequestWorkflowService
                     {
                         SequenceCode = step.SequenceCode,
                         Description = step.Description,
+                        StepType = step.StepType,
                         Role = step.Role,
-                        NextStepCode = step.NextStepCode,
+                        NextStepCode = step.StepType == WorkflowStepType.Normal ? step.NextStepCode : null,
+                        NextStepYesCode = step.StepType == WorkflowStepType.KararNoktasi ? step.NextStepYesCode : null,
+                        NextStepNoCode = step.StepType == WorkflowStepType.KararNoktasi ? step.NextStepNoCode : null,
                         DisplayOrder = stepIndex
                     });
                 }
@@ -1145,8 +1187,20 @@ public class RequestWorkflowService : IRequestWorkflowService
             {
                 entity.SequenceCode = model.SequenceCode;
                 entity.Description = model.Description;
+                entity.StepType = model.StepType;
                 entity.Role = model.Role;
-                entity.NextStepCode = model.NextStepCode;
+                if (model.StepType == WorkflowStepType.KararNoktasi)
+                {
+                    entity.NextStepCode = null;
+                    entity.NextStepYesCode = model.NextStepYesCode;
+                    entity.NextStepNoCode = model.NextStepNoCode;
+                }
+                else
+                {
+                    entity.NextStepCode = model.NextStepCode;
+                    entity.NextStepYesCode = null;
+                    entity.NextStepNoCode = null;
+                }
                 entity.DisplayOrder = index;
             }
             else
@@ -1155,8 +1209,11 @@ public class RequestWorkflowService : IRequestWorkflowService
                 {
                     SequenceCode = model.SequenceCode,
                     Description = model.Description,
+                    StepType = model.StepType,
                     Role = model.Role,
-                    NextStepCode = model.NextStepCode,
+                    NextStepCode = model.StepType == WorkflowStepType.Normal ? model.NextStepCode : null,
+                    NextStepYesCode = model.StepType == WorkflowStepType.KararNoktasi ? model.NextStepYesCode : null,
+                    NextStepNoCode = model.StepType == WorkflowStepType.KararNoktasi ? model.NextStepNoCode : null,
                     DisplayOrder = index
                 });
             }

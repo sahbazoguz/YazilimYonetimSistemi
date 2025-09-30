@@ -76,3 +76,9 @@ public enum AssessmentStage
     DegerlendiriciUc = 2,
     BaskanOnayi = 3
 }
+
+public enum WorkflowStepType
+{
+    Normal = 0,
+    KararNoktasi = 1
+}

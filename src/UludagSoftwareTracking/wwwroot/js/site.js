@@ -4,6 +4,36 @@
         return meta ? meta.getAttribute('content') || '' : '';
     }
 
+    const STEP_TYPE_NORMAL = 'Normal';
+    const STEP_TYPE_DECISION = 'KararNoktasi';
+
+    function normalizeStepType(value) {
+        if (typeof value === 'number') {
+            return value === 1 ? STEP_TYPE_DECISION : STEP_TYPE_NORMAL;
+        }
+
+        if (typeof value === 'string') {
+            const normalized = value.trim();
+            if (!normalized) {
+                return STEP_TYPE_NORMAL;
+            }
+
+            if (normalized.toLowerCase() === 'kararnoktasi' || normalized.toLowerCase() === 'decision') {
+                return STEP_TYPE_DECISION;
+            }
+
+            if (normalized.toLowerCase() === 'normal') {
+                return STEP_TYPE_NORMAL;
+            }
+
+            if (normalized === STEP_TYPE_DECISION || normalized === STEP_TYPE_NORMAL) {
+                return normalized;
+            }
+        }
+
+        return STEP_TYPE_NORMAL;
+    }
+
     function parseInitialWorkflows(json) {
         if (!json) {
             return [];
@@ -19,13 +49,34 @@
                 id: typeof workflow?.id === 'number' ? workflow.id : null,
                 title: typeof workflow?.title === 'string' ? workflow.title : 'Yeni İş Akışı',
                 steps: Array.isArray(workflow?.steps)
-                    ? workflow.steps.map((step) => ({
-                        id: typeof step?.id === 'number' ? step.id : null,
-                        sequenceCode: typeof step?.sequenceCode === 'string' ? step.sequenceCode : '',
-                        description: typeof step?.description === 'string' ? step.description : '',
-                        role: typeof step?.role === 'string' ? step.role : '',
-                        nextStepCode: typeof step?.nextStepCode === 'string' ? step.nextStepCode : ''
-                    }))
+                    ? workflow.steps.map((step) => {
+                        const stepType = normalizeStepType(step?.stepType);
+                        const baseNext = typeof step?.nextStepCode === 'string' ? step.nextStepCode : '';
+                        let nextYes = typeof step?.nextStepYesCode === 'string' ? step.nextStepYesCode : '';
+                        let nextNo = typeof step?.nextStepNoCode === 'string' ? step.nextStepNoCode : '';
+                        let nextSingle = baseNext;
+
+                        if (stepType === STEP_TYPE_DECISION) {
+                            nextYes = nextYes || baseNext;
+                            nextSingle = '';
+                        }
+                        else {
+                            nextSingle = baseNext || nextYes;
+                            nextYes = '';
+                            nextNo = '';
+                        }
+
+                        return {
+                            id: typeof step?.id === 'number' ? step.id : null,
+                            sequenceCode: typeof step?.sequenceCode === 'string' ? step.sequenceCode : '',
+                            description: typeof step?.description === 'string' ? step.description : '',
+                            stepType,
+                            role: typeof step?.role === 'string' ? step.role : '',
+                            nextStepCode: nextSingle,
+                            nextStepYesCode: nextYes,
+                            nextStepNoCode: nextNo
+                        };
+                    })
                     : []
             }));
         }
@@ -52,6 +103,11 @@
         return trimmed.substring(0, maxLength);
     }
 
+    function normalizeStepCode(value) {
+        const normalized = normalizeString(value, 50);
+        return normalized ? normalized.toUpperCase() : '';
+    }
+
     function buildSerializable(state) {
         return state.workflows.map((workflow) => ({
             id: workflow.id,
@@ -60,8 +116,11 @@
                 id: step.id,
                 sequenceCode: normalizeString(step.sequenceCode, 20).toUpperCase(),
                 description: normalizeString(step.description, 500),
+                stepType: step.stepType === STEP_TYPE_DECISION ? STEP_TYPE_DECISION : STEP_TYPE_NORMAL,
                 role: normalizeString(step.role, 150),
-                nextStepCode: normalizeString(step.nextStepCode, 50).toUpperCase()
+                nextStepCode: (step.stepType === STEP_TYPE_DECISION ? '' : normalizeStepCode(step.nextStepCode)) || null,
+                nextStepYesCode: (step.stepType === STEP_TYPE_DECISION ? normalizeStepCode(step.nextStepYesCode) : '') || null,
+                nextStepNoCode: (step.stepType === STEP_TYPE_DECISION ? normalizeStepCode(step.nextStepNoCode) : '') || null
             }))
         }));
     }
@@ -178,9 +237,13 @@
                 id: null,
                 sequenceCode: code,
                 description: '',
+                stepType: STEP_TYPE_NORMAL,
                 role: '',
-                nextStepCode: ''
+                nextStepCode: '',
+                nextStepYesCode: '',
+                nextStepNoCode: ''
             });
+            queueFocus('textarea');
             render();
         }
 
@@ -239,7 +302,7 @@
                 const table = createElement('table', 'is-akisi-tablo');
                 const thead = document.createElement('thead');
                 const headerRow = document.createElement('tr');
-                ['Sıra', 'Açıklama', 'Rol', 'Sonraki Adım', 'İşlemler'].forEach((title) => {
+                ['Sıra', 'Açıklama', 'Rol', 'Tür', 'Geçişler', 'İşlemler'].forEach((title) => {
                     headerRow.appendChild(createElement('th', null, title));
                 });
                 thead.appendChild(headerRow);
@@ -295,17 +358,94 @@
                     }
                     row.appendChild(roleCell);
 
-                    const nextCell = document.createElement('td');
+                    const typeCell = document.createElement('td');
                     if (canEdit) {
-                        const input = document.createElement('input');
-                        input.type = 'text';
-                        input.value = step.nextStepCode;
-                        input.placeholder = 'Sonraki adım';
-                        input.addEventListener('input', () => {
-                            step.nextStepCode = input.value;
+                        const select = document.createElement('select');
+                        const normalOption = createElement('option', null, 'Normal');
+                        normalOption.value = STEP_TYPE_NORMAL;
+                        const decisionOption = createElement('option', null, 'Karar Noktası');
+                        decisionOption.value = STEP_TYPE_DECISION;
+                        select.appendChild(normalOption);
+                        select.appendChild(decisionOption);
+                        select.value = step.stepType === STEP_TYPE_DECISION ? STEP_TYPE_DECISION : STEP_TYPE_NORMAL;
+                        select.addEventListener('change', () => {
+                            const previousType = step.stepType;
+                            const newType = select.value === STEP_TYPE_DECISION ? STEP_TYPE_DECISION : STEP_TYPE_NORMAL;
+                            step.stepType = newType;
+                            if (newType === STEP_TYPE_DECISION && previousType !== STEP_TYPE_DECISION) {
+                                step.nextStepYesCode = step.nextStepCode || step.nextStepYesCode || '';
+                                step.nextStepNoCode = step.nextStepNoCode || '';
+                                step.nextStepCode = '';
+                                queueFocus('[data-branch-yes]');
+                            }
+                            else if (newType === STEP_TYPE_NORMAL && previousType === STEP_TYPE_DECISION) {
+                                step.nextStepCode = step.nextStepYesCode || step.nextStepNoCode || step.nextStepCode || '';
+                                step.nextStepYesCode = '';
+                                step.nextStepNoCode = '';
+                                queueFocus('input[data-next-step]');
+                            }
                             updateHiddenField();
+                            render();
                         });
-                        nextCell.appendChild(input);
+                        typeCell.appendChild(select);
+                    }
+                    else {
+                        typeCell.textContent = step.stepType === STEP_TYPE_DECISION ? 'Karar Noktası' : 'Normal';
+                    }
+                    row.appendChild(typeCell);
+
+                    const nextCell = document.createElement('td');
+                    nextCell.className = 'is-akisi-gecis';
+                    if (canEdit) {
+                        if (step.stepType === STEP_TYPE_DECISION) {
+                            const yesWrapper = createElement('div', 'is-akisi-gecis-satir');
+                            const yesLabel = createElement('span', 'is-akisi-gecis-etiket', 'Evet Adımı');
+                            const yesInput = document.createElement('input');
+                            yesInput.type = 'text';
+                            yesInput.value = step.nextStepYesCode || '';
+                            yesInput.placeholder = 'Evet seçeneği';
+                            yesInput.setAttribute('data-branch-yes', '');
+                            yesInput.addEventListener('input', () => {
+                                step.nextStepYesCode = yesInput.value;
+                                updateHiddenField();
+                            });
+                            yesWrapper.appendChild(yesLabel);
+                            yesWrapper.appendChild(yesInput);
+
+                            const noWrapper = createElement('div', 'is-akisi-gecis-satir');
+                            const noLabel = createElement('span', 'is-akisi-gecis-etiket', 'Hayır Adımı');
+                            const noInput = document.createElement('input');
+                            noInput.type = 'text';
+                            noInput.value = step.nextStepNoCode || '';
+                            noInput.placeholder = 'Hayır seçeneği';
+                            noInput.addEventListener('input', () => {
+                                step.nextStepNoCode = noInput.value;
+                                updateHiddenField();
+                            });
+                            noWrapper.appendChild(noLabel);
+                            noWrapper.appendChild(noInput);
+
+                            nextCell.appendChild(yesWrapper);
+                            nextCell.appendChild(noWrapper);
+                        }
+                        else {
+                            const input = document.createElement('input');
+                            input.type = 'text';
+                            input.value = step.nextStepCode || '';
+                            input.placeholder = 'Sonraki adım';
+                            input.setAttribute('data-next-step', '');
+                            input.addEventListener('input', () => {
+                                step.nextStepCode = input.value;
+                                updateHiddenField();
+                            });
+                            nextCell.appendChild(input);
+                        }
+                    }
+                    else if (step.stepType === STEP_TYPE_DECISION) {
+                        const yesText = step.nextStepYesCode ? `Evet: ${step.nextStepYesCode}` : 'Evet: -';
+                        const noText = step.nextStepNoCode ? `Hayır: ${step.nextStepNoCode}` : 'Hayır: -';
+                        nextCell.appendChild(createElement('div', 'is-akisi-sonraki', yesText));
+                        nextCell.appendChild(createElement('div', 'is-akisi-sonraki', noText));
                     }
                     else {
                         nextCell.textContent = step.nextStepCode || '-';

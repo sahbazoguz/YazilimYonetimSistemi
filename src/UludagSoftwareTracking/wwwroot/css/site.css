@@ -446,6 +446,26 @@ body {
     background-color: #fff;
 }
 
+.is-akisi-gecis {
+    min-width: 14rem;
+}
+
+.is-akisi-gecis-satir {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.is-akisi-gecis-satir:last-child {
+    margin-bottom: 0;
+}
+
+.is-akisi-gecis-etiket {
+    font-size: 0.8125rem;
+    color: var(--metin-ikincil, #555555);
+}
+
 .is-akisi-tablo textarea {
     resize: vertical;
     min-height: 60px;

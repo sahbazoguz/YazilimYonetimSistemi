@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using UludagSoftwareTracking.Models.Entities;
 
 namespace UludagSoftwareTracking.Models.ViewModels;
 
@@ -10,9 +11,15 @@ public class WorkflowStepViewModel
 
     public string Description { get; init; } = string.Empty;
 
+    public WorkflowStepType StepType { get; init; } = WorkflowStepType.Normal;
+
     public string? Role { get; init; }
 
     public string? NextStepCode { get; init; }
+
+    public string? NextStepYesCode { get; init; }
+
+    public string? NextStepNoCode { get; init; }
 }
 
 public class WorkflowDefinitionViewModel
@@ -46,7 +53,13 @@ public class WorkflowEditorStep
 
     public string Description { get; set; } = string.Empty;
 
+    public WorkflowStepType StepType { get; set; } = WorkflowStepType.Normal;
+
     public string? Role { get; set; }
 
     public string? NextStepCode { get; set; }
+
+    public string? NextStepYesCode { get; set; }
+
+    public string? NextStepNoCode { get; set; }
 }

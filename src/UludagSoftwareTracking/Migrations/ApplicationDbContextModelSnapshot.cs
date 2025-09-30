@@ -270,6 +270,17 @@ namespace UludagSoftwareTracking.Migrations
                     .HasMaxLength(50)
                     .HasColumnType("nvarchar(50)");
 
+                b.Property<string>("NextStepNoCode")
+                    .HasMaxLength(50)
+                    .HasColumnType("nvarchar(50)");
+
+                b.Property<string>("NextStepYesCode")
+                    .HasMaxLength(50)
+                    .HasColumnType("nvarchar(50)");
+
+                b.Property<int>("StepType")
+                    .HasColumnType("int");
+
                 b.Property<string>("Role")
                     .HasMaxLength(150)
                     .HasColumnType("nvarchar(150)");

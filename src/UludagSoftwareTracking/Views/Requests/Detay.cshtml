@@ -1,6 +1,8 @@
 @model RequestDetailViewModel
 @using System.Text.Json
+@using System.Text.Json.Serialization
 @using System.Linq
+@using UludagSoftwareTracking.Models.Entities
 @{
     ViewData["Title"] = Model.Talep?.Title ?? "Talep Detayı";
 }
@@ -139,6 +141,7 @@ else if (kullaniciBirim && Model.Talep is not null)
             var workflowsLocked = ViewData["IsAkisiPasif"] as bool? ?? true;
             var canEditWorkflow = !workflowsLocked && (User.IsInRole(RoleConstants.Roles.BirimKullanicisi) || User.IsInRole(RoleConstants.Roles.Yazilimci) || User.IsInRole(RoleConstants.Roles.Admin));
             var workflowOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+            workflowOptions.Converters.Add(new JsonStringEnumConverter());
             var workflowJson = JsonSerializer.Serialize(Model.Workflows ?? Array.Empty<WorkflowDefinitionViewModel>(), workflowOptions);
         }
         <div class="is-akisi-blok"
@@ -162,11 +165,17 @@ else if (kullaniciBirim && Model.Talep is not null)
                                             <li>
                                                 <span class="is-akisi-kod">@adim.SequenceCode</span>
                                                 <span class="is-akisi-aciklama">@adim.Description</span>
+                                                <span class="is-akisi-rol">Tür: @(adim.StepType == WorkflowStepType.KararNoktasi ? "Karar Noktası" : "Normal")</span>
                                                 @if (!string.IsNullOrWhiteSpace(adim.Role))
                                                 {
                                                     <span class="is-akisi-rol">@adim.Role</span>
                                                 }
-                                                @if (!string.IsNullOrWhiteSpace(adim.NextStepCode))
+                                                @if (adim.StepType == WorkflowStepType.KararNoktasi)
+                                                {
+                                                    <span class="is-akisi-sonraki">Evet: @(string.IsNullOrWhiteSpace(adim.NextStepYesCode) ? "-" : adim.NextStepYesCode)</span>
+                                                    <span class="is-akisi-sonraki">Hayır: @(string.IsNullOrWhiteSpace(adim.NextStepNoCode) ? "-" : adim.NextStepNoCode)</span>
+                                                }
+                                                else if (!string.IsNullOrWhiteSpace(adim.NextStepCode))
                                                 {
                                                     <span class="is-akisi-sonraki">Sonraki: @adim.NextStepCode</span>
                                                 }
