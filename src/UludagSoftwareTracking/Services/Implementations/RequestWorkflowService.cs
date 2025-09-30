@@ -1093,7 +1093,7 @@ public class RequestWorkflowService : IRequestWorkflowService
             }
             else
             {
-                var definition = new WorkflowDefinition
+                var newDefinition = new WorkflowDefinition
                 {
                     Title = item.Title,
                     ProjectId = project.Id,
@@ -1104,7 +1104,7 @@ public class RequestWorkflowService : IRequestWorkflowService
                 for (var stepIndex = 0; stepIndex < item.Steps.Count; stepIndex++)
                 {
                     var step = item.Steps[stepIndex];
-                    definition.Steps.Add(new WorkflowStep
+                    newDefinition.Steps.Add(new WorkflowStep
                     {
                         SequenceCode = step.SequenceCode,
                         Description = step.Description,
@@ -1114,7 +1114,7 @@ public class RequestWorkflowService : IRequestWorkflowService
                     });
                 }
 
-                project.WorkflowDefinitions.Add(definition);
+                project.WorkflowDefinitions.Add(newDefinition);
             }
         }
     }

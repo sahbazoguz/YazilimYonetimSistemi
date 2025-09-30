@@ -1,5 +1,6 @@
 @model RequestDetailViewModel
 @using System.Text.Json
+@using System.Linq
 @{
     ViewData["Title"] = Model.Talep?.Title ?? "Talep Detayı";
 }
@@ -148,15 +149,15 @@ else if (kullaniciBirim && Model.Talep is not null)
              data-empty="Henüz iş akışı tanımlanmamış.">
             <div class="is-akisi-liste" data-workflow-list>
                 <noscript>
-                    @if (Model.Workflows.Any())
+                    @if (Model.Workflows?.Any() == true)
                     {
                         <ul class="is-akisi-ozet">
-                            @foreach (var akis in Model.Workflows)
+                            @foreach (var akis in Model.Workflows ?? Enumerable.Empty<WorkflowDefinitionViewModel>())
                             {
                                 <li>
                                     <strong>@akis.Title</strong>
                                     <ol>
-                                        @foreach (var adim in akis.Steps)
+                                        @foreach (var adim in akis.Steps ?? Enumerable.Empty<WorkflowStepViewModel>())
                                         {
                                             <li>
                                                 <span class="is-akisi-kod">@adim.SequenceCode</span>

@@ -41,9 +41,9 @@ public class DashboardService : IDashboardService
                 tiles.Add(new DashboardTileViewModel { Baslik = "Yayındaki Yazılımlar", Deger = featuredSoftwares.Length.ToString(), Stil = "primary" });
                 tiles.Add(new DashboardTileViewModel { Baslik = "Toplam Kılavuz", Deger = recentManuals.Length.ToString(), Stil = "info" });
                 break;
-            case UserRole.BirimKullanicisi:
+            case UserRole.BirimKullanicisi when user is not null:
                 var myRequests = await _context.SoftwareRequests
-                    .Where(r => r.RequestedByUserId == user!.Id)
+                    .Where(r => r.RequestedByUserId == user.Id)
                     .Include(r => r.Department)
                     .OrderByDescending(r => r.CreatedAt)
                     .AsNoTracking()
@@ -67,9 +67,11 @@ public class DashboardService : IDashboardService
                     .ToArray();
                 recentManuals = await GetLatestManualsAsync(cancellationToken);
                 break;
-            case UserRole.BirimYetkilisi:
+            case UserRole.BirimKullanicisi:
+                break;
+            case UserRole.BirimYetkilisi when user is not null:
                 var departmentRequests = await _context.SoftwareRequests
-                    .Where(r => r.DepartmentId == user!.DepartmentId)
+                    .Where(r => r.DepartmentId == user.DepartmentId)
                     .Include(r => r.Department)
                     .Include(r => r.RequestedByUser)
                     .AsNoTracking()
@@ -94,10 +96,12 @@ public class DashboardService : IDashboardService
                     })
                     .ToArray();
                 break;
-            case UserRole.DegerlendiriciBir:
-            case UserRole.DegerlendiriciIki:
-            case UserRole.DegerlendiriciUc:
-                var stage = MapStage(user!.Role);
+            case UserRole.BirimYetkilisi:
+                break;
+            case UserRole.DegerlendiriciBir when user is not null:
+            case UserRole.DegerlendiriciIki when user is not null:
+            case UserRole.DegerlendiriciUc when user is not null:
+                var stage = MapStage(user.Role);
                 var assessmentCandidates = await _context.SoftwareRequests
                     .Where(r => r.Status == RequestStatus.Degerlendirmede)
                     .Include(r => r.Assessments)
@@ -126,6 +130,10 @@ public class DashboardService : IDashboardService
                     })
                     .ToArray();
                 break;
+            case UserRole.DegerlendiriciBir:
+            case UserRole.DegerlendiriciIki:
+            case UserRole.DegerlendiriciUc:
+                break;
             case UserRole.DegerlendirmeBaskani:
                 var pendingBaskan = await _context.SoftwareRequests
                     .Where(r => r.Status == RequestStatus.BaskanOnayiBekliyor)
@@ -150,7 +158,7 @@ public class DashboardService : IDashboardService
                     })
                     .ToArray();
                 break;
-            case UserRole.Yazilimci:
+            case UserRole.Yazilimci when user is not null:
                 activeProjects = await _context.Projects
                     .Where(p => p.Status == ProjectStatus.Planlama || p.Status == ProjectStatus.Analiz || p.Status == ProjectStatus.Gelistirme || p.Status == ProjectStatus.Test)
                     .Include(p => p.Request)
@@ -161,7 +169,7 @@ public class DashboardService : IDashboardService
                     .ToArrayAsync(cancellationToken);
 
                 tiles.Add(new DashboardTileViewModel { Baslik = "Aktif Proje", Deger = activeProjects.Length.ToString(), Stil = "success" });
-                tiles.Add(new DashboardTileViewModel { Baslik = "Atandığım Görev", Deger = activeProjects.Sum(p => p.Assignments.Count(a => a.UserId == user!.Id)).ToString(), Stil = "primary" });
+                tiles.Add(new DashboardTileViewModel { Baslik = "Atandığım Görev", Deger = activeProjects.Sum(p => p.Assignments.Count(a => a.UserId == user.Id)).ToString(), Stil = "primary" });
                 criticalRequests = activeProjects
                     .Select(p => new RequestListItemViewModel
                     {
@@ -174,6 +182,8 @@ public class DashboardService : IDashboardService
                         OlusturmaTarihi = p.Request?.CreatedAt ?? DateTime.UtcNow
                     })
                     .ToArray();
+                break;
+            case UserRole.Yazilimci:
                 break;
             case UserRole.Admin:
                 var totalUsers = await _context.UserProfiles.CountAsync(cancellationToken);
