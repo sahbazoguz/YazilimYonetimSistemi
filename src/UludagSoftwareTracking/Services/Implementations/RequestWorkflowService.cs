@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -20,13 +19,6 @@ public class RequestWorkflowService : IRequestWorkflowService
         AssessmentStage.DegerlendiriciBir,
         AssessmentStage.DegerlendiriciIki,
         AssessmentStage.DegerlendiriciUc
-    };
-
-    private static readonly JsonSerializerOptions AlgorithmSerializerOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = false
     };
 
     private readonly ApplicationDbContext _context;
@@ -124,6 +116,9 @@ public class RequestWorkflowService : IRequestWorkflowService
             .ThenInclude(a => a.User)
             .Include(r => r.Project)
             .ThenInclude(p => p!.LeadUser)
+            .Include(r => r.Project)
+            .ThenInclude(p => p!.WorkflowDefinitions)
+            .ThenInclude(w => w.Steps)
             .Include(r => r.DiscussionMessages)
             .ThenInclude(m => m.Sender)
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
@@ -151,7 +146,7 @@ public class RequestWorkflowService : IRequestWorkflowService
             Mesajlar = request.DiscussionMessages
                 .OrderBy(m => m.PostedOn)
                 .ToArray(),
-            AlgorithmJson = BuildAlgorithmJsonForView(request.Project?.AlgorithmNotes)
+            Workflows = BuildWorkflowViewModels(request.Project)
         };
     }
 
@@ -452,47 +447,56 @@ public class RequestWorkflowService : IRequestWorkflowService
             $"Aşama: {stage} Sonuç: {model.Result}", cancellationToken);
     }
 
-    public async Task UpdateAlgorithmAsync(int requestId, int userId, string algorithmJson, CancellationToken cancellationToken = default)
+    public async Task UpdateWorkflowsAsync(int requestId, int userId, WorkflowEditorPostModel model, CancellationToken cancellationToken = default)
     {
         var request = await _context.SoftwareRequests
             .Include(r => r.Project)
             .ThenInclude(p => p!.Assignments)
+            .Include(r => r.Project)
+            .ThenInclude(p => p!.WorkflowDefinitions)
+            .ThenInclude(w => w.Steps)
             .FirstOrDefaultAsync(r => r.Id == requestId, cancellationToken)
             ?? throw new InvalidOperationException("Talep bulunamadı");
 
         if (request.Project is null)
         {
-            throw new InvalidOperationException("Proje oluşturulmadan algoritma planı güncellenemez.");
+            throw new InvalidOperationException("Proje oluşturulmadan iş akışı güncellenemez.");
         }
 
         if (request.Status != RequestStatus.Gelistirmede && request.Status != RequestStatus.Tamamlandi && request.Status != RequestStatus.Kapandi)
         {
-            throw new InvalidOperationException("Başkan onayı tamamlanmadan algoritma planı güncellenemez.");
+            throw new InvalidOperationException("Başkan onayı tamamlanmadan iş akışı güncellenemez.");
         }
 
         var user = await GetUserAsync(userId, cancellationToken);
-        if (!IsDeveloper(user) && user.Role != UserRole.Admin && user.Role != UserRole.BirimKullanicisi)
+        var isDeveloper = IsDeveloper(user);
+        var isAdmin = user.Role == UserRole.Admin;
+        var isUnitUser = user.Role == UserRole.BirimKullanicisi;
+
+        if (!isDeveloper && !isAdmin && !isUnitUser)
         {
-            throw new InvalidOperationException("Algoritma üzerinde değişiklik yapma yetkiniz yok.");
+            throw new InvalidOperationException("İş akışı üzerinde değişiklik yapma yetkiniz yok.");
         }
 
-        if (IsDeveloper(user) && !request.Project.Assignments.Any(a => a.UserId == userId))
+        if (isDeveloper && !request.Project.Assignments.Any(a => a.UserId == userId))
         {
             throw new InvalidOperationException("Bu projeye atanmadınız.");
         }
 
-        if (user.Role == UserRole.BirimKullanicisi && user.DepartmentId != request.DepartmentId)
+        if (isUnitUser && user.DepartmentId != request.DepartmentId)
         {
-            throw new InvalidOperationException("Yalnızca talep sahibi birim algoritma planını güncelleyebilir.");
+            throw new InvalidOperationException("Yalnızca talep sahibi birim iş akışını güncelleyebilir.");
         }
 
-        var normalized = NormalizeAlgorithmJson(algorithmJson);
-        request.Project.AlgorithmNotes = normalized;
+        var sanitizedWorkflows = NormalizeWorkflowPayload(model);
+
+        ApplyWorkflowUpdates(request.Project, sanitizedWorkflows);
+
         request.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);
 
-        await _auditLogService.RecordAsync(userId, "Algoritma Güncelleme", nameof(Project), request.Project.Id,
+        await _auditLogService.RecordAsync(userId, "İş Akışı Güncelleme", nameof(Project), request.Project.Id,
             null, cancellationToken);
     }
 
@@ -935,6 +939,259 @@ public class RequestWorkflowService : IRequestWorkflowService
         };
     }
 
+    private static IReadOnlyCollection<WorkflowDefinitionViewModel> BuildWorkflowViewModels(Project? project)
+    {
+        if (project?.WorkflowDefinitions is null || project.WorkflowDefinitions.Count == 0)
+        {
+            return Array.Empty<WorkflowDefinitionViewModel>();
+        }
+
+        return project.WorkflowDefinitions
+            .OrderBy(w => w.DisplayOrder)
+            .ThenBy(w => w.Id)
+            .Select(w => new WorkflowDefinitionViewModel
+            {
+                Id = w.Id,
+                Title = w.Title,
+                Steps = w.Steps
+                    .OrderBy(s => s.DisplayOrder)
+                    .ThenBy(s => s.Id)
+                    .Select(s => new WorkflowStepViewModel
+                    {
+                        Id = s.Id,
+                        SequenceCode = s.SequenceCode,
+                        Description = s.Description,
+                        Role = s.Role,
+                        NextStepCode = s.NextStepCode
+                    })
+                    .ToArray()
+            })
+            .ToArray();
+    }
+
+    private static List<WorkflowEditorDefinition> NormalizeWorkflowPayload(WorkflowEditorPostModel model)
+    {
+        var definitions = model?.Workflows ?? new List<WorkflowEditorDefinition>();
+        var result = new List<WorkflowEditorDefinition>();
+
+        foreach (var definition in definitions)
+        {
+            if (definition is null)
+            {
+                continue;
+            }
+
+            var title = definition.Title?.Trim();
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                throw new InvalidOperationException("İş akışı başlığı boş bırakılamaz.");
+            }
+
+            var steps = NormalizeWorkflowSteps(definition.Steps ?? new List<WorkflowEditorStep>());
+            if (steps.Count == 0)
+            {
+                throw new InvalidOperationException($"\"{title}\" iş akışı için en az bir adım eklenmelidir.");
+            }
+
+            result.Add(new WorkflowEditorDefinition
+            {
+                Id = definition.Id,
+                Title = TrimToLength(title, 150),
+                Steps = steps
+            });
+        }
+
+        return result;
+    }
+
+    private static List<WorkflowEditorStep> NormalizeWorkflowSteps(IEnumerable<WorkflowEditorStep> steps)
+    {
+        var result = new List<WorkflowEditorStep>();
+        var usedCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var nextIndex = 1;
+
+        foreach (var step in steps ?? Enumerable.Empty<WorkflowEditorStep>())
+        {
+            if (step is null)
+            {
+                continue;
+            }
+
+            var description = step.Description?.Trim();
+            if (string.IsNullOrWhiteSpace(description))
+            {
+                throw new InvalidOperationException("Adım açıklaması boş bırakılamaz.");
+            }
+
+            var code = step.SequenceCode?.Trim();
+            if (string.IsNullOrWhiteSpace(code))
+            {
+                code = GenerateSequenceCode(usedCodes, ref nextIndex);
+            }
+            else
+            {
+                code = code.ToUpperInvariant();
+                if (!usedCodes.Add(code))
+                {
+                    code = GenerateSequenceCode(usedCodes, ref nextIndex);
+                }
+            }
+
+            var role = step.Role?.Trim();
+            var next = step.NextStepCode?.Trim();
+
+            if (!string.IsNullOrWhiteSpace(next))
+            {
+                next = next.ToUpperInvariant();
+            }
+
+            result.Add(new WorkflowEditorStep
+            {
+                Id = step.Id,
+                SequenceCode = TrimToLength(code, 20),
+                Description = TrimToLength(description, 500),
+                Role = TrimToLengthOrNull(role, 150),
+                NextStepCode = TrimToLengthOrNull(next, 50)
+            });
+        }
+
+        return result;
+    }
+
+    private void ApplyWorkflowUpdates(Project project, IReadOnlyList<WorkflowEditorDefinition> payload)
+    {
+        var existingDefinitions = project.WorkflowDefinitions
+            .ToDictionary(w => w.Id);
+
+        var keepIds = payload
+            .Where(w => w.Id.HasValue && w.Id.Value > 0)
+            .Select(w => w.Id!.Value)
+            .ToHashSet();
+
+        var definitionsToRemove = project.WorkflowDefinitions
+            .Where(w => !keepIds.Contains(w.Id))
+            .ToList();
+
+        if (definitionsToRemove.Count > 0)
+        {
+            foreach (var definition in definitionsToRemove)
+            {
+                project.WorkflowDefinitions.Remove(definition);
+                _context.WorkflowDefinitions.Remove(definition);
+            }
+        }
+
+        for (var index = 0; index < payload.Count; index++)
+        {
+            var item = payload[index];
+
+            if (item.Id.HasValue && item.Id.Value > 0 && existingDefinitions.TryGetValue(item.Id.Value, out var definition))
+            {
+                definition.Title = item.Title;
+                definition.DisplayOrder = index;
+                ApplyStepUpdates(definition, item.Steps);
+            }
+            else
+            {
+                var definition = new WorkflowDefinition
+                {
+                    Title = item.Title,
+                    ProjectId = project.Id,
+                    DisplayOrder = index,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                for (var stepIndex = 0; stepIndex < item.Steps.Count; stepIndex++)
+                {
+                    var step = item.Steps[stepIndex];
+                    definition.Steps.Add(new WorkflowStep
+                    {
+                        SequenceCode = step.SequenceCode,
+                        Description = step.Description,
+                        Role = step.Role,
+                        NextStepCode = step.NextStepCode,
+                        DisplayOrder = stepIndex
+                    });
+                }
+
+                project.WorkflowDefinitions.Add(definition);
+            }
+        }
+    }
+
+    private void ApplyStepUpdates(WorkflowDefinition definition, IReadOnlyList<WorkflowEditorStep> steps)
+    {
+        var existingSteps = definition.Steps.ToDictionary(s => s.Id);
+        var keepIds = steps
+            .Where(s => s.Id.HasValue && s.Id.Value > 0)
+            .Select(s => s.Id!.Value)
+            .ToHashSet();
+
+        var stepsToRemove = definition.Steps
+            .Where(s => !keepIds.Contains(s.Id))
+            .ToList();
+
+        foreach (var step in stepsToRemove)
+        {
+            definition.Steps.Remove(step);
+            _context.WorkflowSteps.Remove(step);
+        }
+
+        for (var index = 0; index < steps.Count; index++)
+        {
+            var model = steps[index];
+
+            if (model.Id.HasValue && model.Id.Value > 0 && existingSteps.TryGetValue(model.Id.Value, out var entity))
+            {
+                entity.SequenceCode = model.SequenceCode;
+                entity.Description = model.Description;
+                entity.Role = model.Role;
+                entity.NextStepCode = model.NextStepCode;
+                entity.DisplayOrder = index;
+            }
+            else
+            {
+                definition.Steps.Add(new WorkflowStep
+                {
+                    SequenceCode = model.SequenceCode,
+                    Description = model.Description,
+                    Role = model.Role,
+                    NextStepCode = model.NextStepCode,
+                    DisplayOrder = index
+                });
+            }
+        }
+    }
+
+    private static string GenerateSequenceCode(HashSet<string> usedCodes, ref int nextIndex)
+    {
+        while (true)
+        {
+            var candidate = $"A{nextIndex}";
+            nextIndex++;
+            if (usedCodes.Add(candidate))
+            {
+                return candidate;
+            }
+        }
+    }
+
+    private static string TrimToLength(string value, int maxLength)
+    {
+        return value.Length <= maxLength ? value : value[..maxLength];
+    }
+
+    private static string? TrimToLengthOrNull(string? value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        value = value.Trim();
+        return value.Length <= maxLength ? value : value[..maxLength];
+    }
+
     private static bool IsDeveloper(UserProfile user) => user.Role == UserRole.Yazilimci;
 
     private bool IsDiscussionParticipant(UserProfile user, SoftwareRequest request)
@@ -962,235 +1219,6 @@ public class RequestWorkflowService : IRequestWorkflowService
         return await _context.UserProfiles
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken)
             ?? throw new InvalidOperationException("Kullanıcı bulunamadı");
-    }
-
-    private static readonly AlgorithmDesignerModel EmptyAlgorithm = new();
-
-    private static string NormalizeAlgorithmJson(string algorithmJson)
-    {
-        var designer = ParseAlgorithmDesigner(algorithmJson);
-        var normalized = NormalizeAlgorithmDesigner(designer);
-
-        return JsonSerializer.Serialize(normalized, AlgorithmSerializerOptions);
-    }
-
-    private static string BuildAlgorithmJsonForView(string? algorithmNotes)
-    {
-        if (string.IsNullOrWhiteSpace(algorithmNotes))
-        {
-            return JsonSerializer.Serialize(EmptyAlgorithm, AlgorithmSerializerOptions);
-        }
-
-        try
-        {
-            var designer = ParseAlgorithmDesigner(algorithmNotes);
-            var normalized = NormalizeAlgorithmDesigner(designer);
-            return JsonSerializer.Serialize(normalized, AlgorithmSerializerOptions);
-        }
-        catch (InvalidOperationException)
-        {
-            return JsonSerializer.Serialize(EmptyAlgorithm, AlgorithmSerializerOptions);
-        }
-    }
-
-    private static AlgorithmDesignerModel ParseAlgorithmDesigner(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return new AlgorithmDesignerModel();
-        }
-
-        try
-        {
-            var designer = JsonSerializer.Deserialize<AlgorithmDesignerModel>(json, AlgorithmSerializerOptions);
-            return designer ?? new AlgorithmDesignerModel();
-        }
-        catch (JsonException ex)
-        {
-            throw new InvalidOperationException("Algoritma verisi çözümlenemedi.", ex);
-        }
-    }
-
-    private static AlgorithmDesignerModel NormalizeAlgorithmDesigner(AlgorithmDesignerModel designer)
-    {
-        var normalizedSteps = NormalizeAlgorithmSteps(designer.Steps);
-        var normalizedFlows = NormalizeAlgorithmFlows(designer.Flows, normalizedSteps);
-
-        return new AlgorithmDesignerModel
-        {
-            Steps = normalizedSteps,
-            Flows = normalizedFlows
-        };
-    }
-
-    private static List<AlgorithmStepModel> NormalizeAlgorithmSteps(IEnumerable<AlgorithmStepModel>? steps)
-    {
-        var result = new List<AlgorithmStepModel>();
-        if (steps is null)
-        {
-            return result;
-        }
-
-        var seenCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var step in steps)
-        {
-            if (step is null)
-            {
-                continue;
-            }
-
-            var code = step.Code?.Trim();
-            if (string.IsNullOrWhiteSpace(code))
-            {
-                continue;
-            }
-
-            code = code.ToUpperInvariant();
-            if (!seenCodes.Add(code))
-            {
-                continue;
-            }
-
-            var title = step.Title?.Trim();
-            if (string.IsNullOrWhiteSpace(title))
-            {
-                continue;
-            }
-
-            var normalized = new AlgorithmStepModel
-            {
-                Code = code,
-                Title = title,
-                Type = step.Type == AlgorithmStepType.Decision ? AlgorithmStepType.Decision : AlgorithmStepType.Normal,
-                Description = string.IsNullOrWhiteSpace(step.Description) ? null : step.Description.Trim(),
-                Role = string.IsNullOrWhiteSpace(step.Role) ? null : step.Role.Trim(),
-                NextCode = null,
-                Branches = new List<AlgorithmBranchModel>()
-            };
-
-            if (normalized.Type == AlgorithmStepType.Normal)
-            {
-                var next = step.NextCode?.Trim();
-                if (!string.IsNullOrWhiteSpace(next))
-                {
-                    normalized.NextCode = next.ToUpperInvariant();
-                }
-            }
-            else if (step.Branches is not null)
-            {
-                foreach (var branch in step.Branches)
-                {
-                    if (branch is null)
-                    {
-                        continue;
-                    }
-
-                    var label = branch.Label?.Trim();
-                    var target = branch.TargetCode?.Trim();
-                    if (string.IsNullOrWhiteSpace(label) || string.IsNullOrWhiteSpace(target))
-                    {
-                        continue;
-                    }
-
-                    normalized.Branches.Add(new AlgorithmBranchModel
-                    {
-                        Label = label,
-                        TargetCode = target.ToUpperInvariant()
-                    });
-                }
-            }
-
-            result.Add(normalized);
-        }
-
-        var codes = new HashSet<string>(result.Select(s => s.Code), StringComparer.OrdinalIgnoreCase);
-
-        foreach (var step in result)
-        {
-            if (step.NextCode is not null && !codes.Contains(step.NextCode))
-            {
-                step.NextCode = null;
-            }
-
-            if (step.Type == AlgorithmStepType.Decision)
-            {
-                step.Branches = step.Branches
-                    .Where(b => codes.Contains(b.TargetCode))
-                    .ToList();
-            }
-        }
-
-        return result;
-    }
-
-    private static List<AlgorithmFlowModel> NormalizeAlgorithmFlows(IEnumerable<AlgorithmFlowModel>? flows, IReadOnlyCollection<AlgorithmStepModel> steps)
-    {
-        var result = new List<AlgorithmFlowModel>();
-
-        if (steps.Count == 0)
-        {
-            return result;
-        }
-
-        var codes = new HashSet<string>(steps.Select(s => s.Code), StringComparer.OrdinalIgnoreCase);
-        var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        if (flows is not null)
-        {
-            foreach (var flow in flows)
-            {
-                if (flow is null)
-                {
-                    continue;
-                }
-
-                var name = flow.Name?.Trim();
-                var start = flow.StartCode?.Trim();
-
-                if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(start))
-                {
-                    continue;
-                }
-
-                start = start.ToUpperInvariant();
-                if (!codes.Contains(start))
-                {
-                    continue;
-                }
-
-                result.Add(new AlgorithmFlowModel
-                {
-                    Name = EnsureUniqueFlowName(name, usedNames),
-                    StartCode = start
-                });
-            }
-        }
-
-        if (result.Count == 0)
-        {
-            result.Add(new AlgorithmFlowModel
-            {
-                Name = "Ana Akış",
-                StartCode = steps.First().Code
-            });
-        }
-
-        return result;
-    }
-
-    private static string EnsureUniqueFlowName(string desiredName, ISet<string> usedNames)
-    {
-        var candidate = desiredName;
-        var index = 2;
-
-        while (!usedNames.Add(candidate))
-        {
-            candidate = $"{desiredName} ({index})";
-            index++;
-        }
-
-        return candidate;
     }
 
     private async Task<List<UserProfile>> GetUsersByRolesAsync(CancellationToken cancellationToken, params UserRole[] roles)

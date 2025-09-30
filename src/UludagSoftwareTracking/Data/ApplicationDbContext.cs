@@ -34,6 +34,10 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<ActionLog> ActionLogs => Set<ActionLog>();
 
+    public DbSet<WorkflowDefinition> WorkflowDefinitions => Set<WorkflowDefinition>();
+
+    public DbSet<WorkflowStep> WorkflowSteps => Set<WorkflowStep>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -140,6 +144,29 @@ public class ApplicationDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(p => p.LeadUserId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<WorkflowDefinition>(entity =>
+        {
+            entity.Property(w => w.Title).IsRequired().HasMaxLength(150);
+            entity.HasOne(w => w.Project)
+                .WithMany(p => p.WorkflowDefinitions)
+                .HasForeignKey(w => w.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(w => new { w.ProjectId, w.DisplayOrder });
+        });
+
+        modelBuilder.Entity<WorkflowStep>(entity =>
+        {
+            entity.Property(s => s.SequenceCode).IsRequired().HasMaxLength(20);
+            entity.Property(s => s.Description).IsRequired().HasMaxLength(500);
+            entity.Property(s => s.Role).HasMaxLength(150);
+            entity.Property(s => s.NextStepCode).HasMaxLength(50);
+            entity.HasOne(s => s.WorkflowDefinition)
+                .WithMany(w => w.Steps)
+                .HasForeignKey(s => s.WorkflowDefinitionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(s => new { s.WorkflowDefinitionId, s.DisplayOrder });
         });
 
         modelBuilder.Entity<ProjectAssignment>(entity =>

@@ -139,10 +139,6 @@ namespace UludagSoftwareTracking.Migrations
 
                 SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                b.Property<string>("AlgorithmNotes")
-                    .HasMaxLength(4000)
-                    .HasColumnType("nvarchar(4000)");
-
                 b.Property<DateTime?>("CompletedOn")
                     .HasColumnType("datetime2");
 
@@ -223,6 +219,74 @@ namespace UludagSoftwareTracking.Migrations
                 b.HasIndex("UserId");
 
                 b.ToTable("ProjectAssignments");
+            });
+
+            modelBuilder.Entity("UludagSoftwareTracking.Models.Entities.WorkflowDefinition", b =>
+            {
+                b.Property<int>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("int");
+
+                SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                b.Property<DateTime>("CreatedAt")
+                    .HasColumnType("datetime2");
+
+                b.Property<int>("DisplayOrder")
+                    .HasColumnType("int");
+
+                b.Property<int>("ProjectId")
+                    .HasColumnType("int");
+
+                b.Property<string>("Title")
+                    .IsRequired()
+                    .HasMaxLength(150)
+                    .HasColumnType("nvarchar(150)");
+
+                b.HasKey("Id");
+
+                b.HasIndex("ProjectId", "DisplayOrder");
+
+                b.ToTable("WorkflowDefinitions");
+            });
+
+            modelBuilder.Entity("UludagSoftwareTracking.Models.Entities.WorkflowStep", b =>
+            {
+                b.Property<int>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("int");
+
+                SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                b.Property<string>("Description")
+                    .IsRequired()
+                    .HasMaxLength(500)
+                    .HasColumnType("nvarchar(500)");
+
+                b.Property<int>("DisplayOrder")
+                    .HasColumnType("int");
+
+                b.Property<string>("NextStepCode")
+                    .HasMaxLength(50)
+                    .HasColumnType("nvarchar(50)");
+
+                b.Property<string>("Role")
+                    .HasMaxLength(150)
+                    .HasColumnType("nvarchar(150)");
+
+                b.Property<string>("SequenceCode")
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasColumnType("nvarchar(20)");
+
+                b.Property<int>("WorkflowDefinitionId")
+                    .HasColumnType("int");
+
+                b.HasKey("Id");
+
+                b.HasIndex("WorkflowDefinitionId", "DisplayOrder");
+
+                b.ToTable("WorkflowSteps");
             });
 
             modelBuilder.Entity("UludagSoftwareTracking.Models.Entities.RequestApproval", b =>
@@ -577,6 +641,8 @@ namespace UludagSoftwareTracking.Migrations
                 b.Navigation("LeadUser");
 
                 b.Navigation("Request");
+
+                b.Navigation("WorkflowDefinitions");
             });
 
             modelBuilder.Entity("UludagSoftwareTracking.Models.Entities.ProjectAssignment", b =>
@@ -596,6 +662,30 @@ namespace UludagSoftwareTracking.Migrations
                 b.Navigation("Project");
 
                 b.Navigation("User");
+            });
+
+            modelBuilder.Entity("UludagSoftwareTracking.Models.Entities.WorkflowDefinition", b =>
+            {
+                b.HasOne("UludagSoftwareTracking.Models.Entities.Project", "Project")
+                    .WithMany("WorkflowDefinitions")
+                    .HasForeignKey("ProjectId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.Navigation("Project");
+
+                b.Navigation("Steps");
+            });
+
+            modelBuilder.Entity("UludagSoftwareTracking.Models.Entities.WorkflowStep", b =>
+            {
+                b.HasOne("UludagSoftwareTracking.Models.Entities.WorkflowDefinition", "WorkflowDefinition")
+                    .WithMany("Steps")
+                    .HasForeignKey("WorkflowDefinitionId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.Navigation("WorkflowDefinition");
             });
 
             modelBuilder.Entity("UludagSoftwareTracking.Models.Entities.RequestApproval", b =>

@@ -1,4 +1,5 @@
 @model RequestDetailViewModel
+@using System.Text.Json
 @{
     ViewData["Title"] = Model.Talep?.Title ?? "Talep Detayı";
 }
@@ -132,15 +133,77 @@ else if (kullaniciBirim && Model.Talep is not null)
                 <a class="buton-link" asp-action="Gorevlendir" asp-route-id="@Model.Talep!.Id">Ekip Görevlendir</a>
             </p>
         }
-        <div class="algoritma-baglanti">
-            <h3>Algoritma Tasarımı</h3>
-            <p>
-                <a class="buton-link" href="https://ornek.univ.tr/algoritma-editoru" target="_blank" rel="noopener">
-                    Algoritma Tasarım Aracını Aç
-                </a>
-            </p>
-            <p class="yardim-metin">Algoritma akışları harici editör üzerinden yönetilecektir.</p>
+        <h3>İş Akışı Tasarımı</h3>
+        @{
+            var workflowsLocked = ViewData["IsAkisiPasif"] as bool? ?? true;
+            var canEditWorkflow = !workflowsLocked && (User.IsInRole(RoleConstants.Roles.BirimKullanicisi) || User.IsInRole(RoleConstants.Roles.Yazilimci) || User.IsInRole(RoleConstants.Roles.Admin));
+            var workflowOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+            var workflowJson = JsonSerializer.Serialize(Model.Workflows ?? Array.Empty<WorkflowDefinitionViewModel>(), workflowOptions);
+        }
+        <div class="is-akisi-blok"
+             data-workflow-designer
+             data-initial='@Html.Raw(workflowJson)'
+             data-can-edit="@canEditWorkflow.ToString().ToLowerInvariant()"
+             data-input="#workflowJsonInput"
+             data-empty="Henüz iş akışı tanımlanmamış.">
+            <div class="is-akisi-liste" data-workflow-list>
+                <noscript>
+                    @if (Model.Workflows.Any())
+                    {
+                        <ul class="is-akisi-ozet">
+                            @foreach (var akis in Model.Workflows)
+                            {
+                                <li>
+                                    <strong>@akis.Title</strong>
+                                    <ol>
+                                        @foreach (var adim in akis.Steps)
+                                        {
+                                            <li>
+                                                <span class="is-akisi-kod">@adim.SequenceCode</span>
+                                                <span class="is-akisi-aciklama">@adim.Description</span>
+                                                @if (!string.IsNullOrWhiteSpace(adim.Role))
+                                                {
+                                                    <span class="is-akisi-rol">@adim.Role</span>
+                                                }
+                                                @if (!string.IsNullOrWhiteSpace(adim.NextStepCode))
+                                                {
+                                                    <span class="is-akisi-sonraki">Sonraki: @adim.NextStepCode</span>
+                                                }
+                                            </li>
+                                        }
+                                    </ol>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <p>Henüz iş akışı tanımlanmamış.</p>
+                    }
+                </noscript>
+            </div>
+            @if (canEditWorkflow)
+            {
+                <div class="is-akisi-aksiyonlar">
+                    <button type="button" class="buton-link" data-workflow-add>Yeni İş Akışı Ekle</button>
+                </div>
+            }
         </div>
+        @if (canEditWorkflow)
+        {
+            <form asp-action="IsAkisiGuncelle" asp-route-id="@Model.Talep!.Id" method="post" class="is-akisi-form">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="isAkisiJson" id="workflowJsonInput" />
+                <button type="submit" class="buton-link" data-workflow-save>İş Akışlarını Kaydet</button>
+            </form>
+        }
+        else
+        {
+            var infoMessage = workflowsLocked
+                ? "Başkan onayı tamamlanmadan iş akışı düzenlenemez."
+                : "İş akışı yalnızca geliştiriciler ve talep sahibi birim tarafından düzenlenebilir.";
+            <p class="yardim-metin">@infoMessage</p>
+        }
         <div class="kilavuz-blok">
             <h3>Kılavuzlar</h3>
             <ul class="kilavuz-listesi">

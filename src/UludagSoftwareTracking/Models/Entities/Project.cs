@@ -27,9 +27,6 @@ public class Project
 
     public UserProfile? LeadUser { get; set; }
 
-    [StringLength(4000)]
-    public string? AlgorithmNotes { get; set; }
-
     [StringLength(200)]
     public string? TechnicalGuidePath { get; set; }
 
@@ -41,4 +38,6 @@ public class Project
     public DateTime? TestConfirmedOn { get; set; }
 
     public ICollection<ProjectAssignment> Assignments { get; set; } = new List<ProjectAssignment>();
+
+    public ICollection<WorkflowDefinition> WorkflowDefinitions { get; set; } = new List<WorkflowDefinition>();
 }

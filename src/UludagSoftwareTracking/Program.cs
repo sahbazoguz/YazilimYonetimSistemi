@@ -55,8 +55,8 @@ builder.Services.AddAuthorization(options =>
         policy => policy.RequireRole(RoleConstants.Roles.Yazilimci, RoleConstants.Roles.Admin));
     options.AddPolicy(RoleConstants.Policies.RequireAdmin,
         policy => policy.RequireRole(RoleConstants.Roles.Admin));
-    options.AddPolicy(RoleConstants.Policies.RequireAlgorithmEditor,
-        policy => policy.RequireRole(RoleConstants.Roles.BirimKullanicisi, RoleConstants.Roles.Yazilimci));
+    options.AddPolicy(RoleConstants.Policies.RequireWorkflowEditor,
+        policy => policy.RequireRole(RoleConstants.Roles.BirimKullanicisi, RoleConstants.Roles.Yazilimci, RoleConstants.Roles.Admin));
 });
 
 builder.Services.AddScoped<IUserContextService, UserContextService>();

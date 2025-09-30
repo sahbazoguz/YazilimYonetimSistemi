@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -187,7 +188,7 @@ public class RequestsController : Controller
                     Degerlendirmeler = Array.Empty<RequestAssessment>(),
                     Proje = detail.Proje,
                     Mesajlar = detail.Mesajlar,
-                    AlgorithmJson = detail.AlgorithmJson
+                    Workflows = detail.Workflows
                 };
             }
             else if (user.Role == UserRole.Personel || user.Role == UserRole.Ogrenci)
@@ -209,11 +210,11 @@ public class RequestsController : Controller
             }
         }
 
-        var algorithmLocked = detail.Talep?.Status != RequestStatus.Gelistirmede
+        var workflowLocked = detail.Talep?.Status != RequestStatus.Gelistirmede
             && detail.Talep?.Status != RequestStatus.Tamamlandi
             && detail.Talep?.Status != RequestStatus.Kapandi;
 
-        ViewData["AlgoritmaButonPasif"] = algorithmLocked;
+        ViewData["IsAkisiPasif"] = workflowLocked;
         ViewData["TakimAtamaIzni"] = user?.Role == UserRole.DegerlendirmeBaskani
             && detail.Talep?.Status == RequestStatus.Gelistirmede;
 
@@ -425,9 +426,15 @@ public class RequestsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = RoleConstants.Policies.RequireAlgorithmEditor)]
-    public async Task<IActionResult> AlgoritmaGuncelle(int id, string algoritmaJson, CancellationToken cancellationToken)
+    [Authorize(Policy = RoleConstants.Policies.RequireWorkflowEditor)]
+    public async Task<IActionResult> IsAkisiGuncelle(int id, string isAkisiJson, CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(isAkisiJson))
+        {
+            TempData["Warning"] = "İş akışı verisi gönderilmedi.";
+            return RedirectToAction(nameof(Detay), new { id });
+        }
+
         var user = await _userContextService.GetCurrentUserAsync(cancellationToken);
         if (user is null)
         {
@@ -436,12 +443,27 @@ public class RequestsController : Controller
 
         try
         {
-            await _requestWorkflowService.UpdateAlgorithmAsync(id, user.Id, algoritmaJson ?? string.Empty, cancellationToken);
-            TempData["Success"] = "Algoritma taslağı güncellendi";
+            var payload = JsonSerializer.Deserialize<WorkflowEditorPostModel>(isAkisiJson, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+            if (payload is null)
+            {
+                TempData["Warning"] = "İş akışı verisi çözümlenemedi.";
+            }
+            else
+            {
+                await _requestWorkflowService.UpdateWorkflowsAsync(id, user.Id, payload, cancellationToken);
+                TempData["Success"] = "İş akışları güncellendi";
+            }
         }
         catch (InvalidOperationException ex)
         {
             TempData["Warning"] = ex.Message;
+        }
+        catch (JsonException)
+        {
+            TempData["Warning"] = "İş akışı verisi çözümlenemedi.";
         }
 
         return RedirectToAction(nameof(Detay), new { id });
