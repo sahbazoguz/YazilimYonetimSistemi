@@ -144,6 +144,10 @@ public class ApplicationDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(p => p.LeadUserId)
                 .OnDelete(DeleteBehavior.SetNull);
+            entity.HasMany(p => p.WorkflowDefinitions)
+                .WithOne(w => w.Project)
+                .HasForeignKey(w => w.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<WorkflowDefinition>(entity =>

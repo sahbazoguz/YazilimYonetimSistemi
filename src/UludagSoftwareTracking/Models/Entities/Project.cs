@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace UludagSoftwareTracking.Models.Entities;
 
@@ -39,5 +41,6 @@ public class Project
 
     public ICollection<ProjectAssignment> Assignments { get; set; } = new List<ProjectAssignment>();
 
+    [InverseProperty(nameof(WorkflowDefinition.Project))]
     public ICollection<WorkflowDefinition> WorkflowDefinitions { get; set; } = new List<WorkflowDefinition>();
 }
