@@ -14,9 +14,9 @@ public class SoftwareController : Controller
         _catalogService = catalogService;
     }
 
-    public async Task<IActionResult> Index(string? aramaMetni, int? birimId, string? teknoloji, CancellationToken cancellationToken)
+    public async Task<IActionResult> Index(string? aramaMetni, int? birimId, CancellationToken cancellationToken)
     {
-        var viewModel = await _catalogService.GetCatalogAsync(aramaMetni, birimId, teknoloji, cancellationToken);
+        var viewModel = await _catalogService.GetCatalogAsync(aramaMetni, birimId, cancellationToken);
         return View(viewModel);
     }
 

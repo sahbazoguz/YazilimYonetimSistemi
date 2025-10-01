@@ -8,7 +8,7 @@ namespace UludagSoftwareTracking.Services.Interfaces;
 
 public interface ISoftwareCatalogService
 {
-    Task<SoftwareCatalogViewModel> GetCatalogAsync(string? search, int? departmentId, string? technology, CancellationToken cancellationToken = default);
+    Task<SoftwareCatalogViewModel> GetCatalogAsync(string? search, int? departmentId, CancellationToken cancellationToken = default);
 
     Task<SoftwareDetailViewModel?> GetDetailAsync(int id, CancellationToken cancellationToken = default);
 

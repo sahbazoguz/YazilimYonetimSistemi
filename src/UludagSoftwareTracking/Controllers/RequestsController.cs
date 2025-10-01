@@ -290,7 +290,7 @@ public class RequestsController : Controller
             return RedirectToAction(nameof(Detay), new { id });
         }
 
-        var softwares = await _catalogService.GetCatalogAsync(null, null, null, cancellationToken);
+        var softwares = await _catalogService.GetCatalogAsync(null, null, cancellationToken);
         var input = new RequestAssessmentInputModel
         {
             RequestId = id,
@@ -325,7 +325,7 @@ public class RequestsController : Controller
 
         if (!ModelState.IsValid)
         {
-            var softwares = await _catalogService.GetCatalogAsync(null, null, null, cancellationToken);
+            var softwares = await _catalogService.GetCatalogAsync(null, null, cancellationToken);
             model.Yazilimlar = softwares.Yazilimlar;
             var detail = await _requestWorkflowService.GetDetailAsync(model.RequestId, cancellationToken);
             if (detail?.Talep is not null)

@@ -20,16 +20,23 @@ public class SoftwareCatalogService : ISoftwareCatalogService
         _context = context;
     }
 
-    public async Task<SoftwareCatalogViewModel> GetCatalogAsync(string? search, int? departmentId, string? technology, CancellationToken cancellationToken = default)
+    public async Task<SoftwareCatalogViewModel> GetCatalogAsync(string? search, int? departmentId, CancellationToken cancellationToken = default)
     {
         var query = _context.Softwares
             .Include(s => s.Department)
+            .Include(s => s.Manuals)
+            .Include(s => s.Request)
+            .ThenInclude(r => r.Project)
             .Where(s => s.IsActive)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            query = query.Where(s => s.Name.Contains(search) || (s.Description != null && s.Description.Contains(search)));
+            var aranacak = $"%{search.Trim()}%";
+
+            query = query.Where(s =>
+                EF.Functions.Like(s.Name, aranacak) ||
+                (s.Description != null && EF.Functions.Like(s.Description, aranacak)));
         }
 
         if (departmentId.HasValue)
@@ -37,41 +44,57 @@ public class SoftwareCatalogService : ISoftwareCatalogService
             query = query.Where(s => s.DepartmentId == departmentId.Value);
         }
 
-        if (!string.IsNullOrWhiteSpace(technology))
-        {
-            query = query.Where(s => s.TechnologyStack != null && s.TechnologyStack.Contains(technology));
-        }
-
         var softwares = await query
             .OrderBy(s => s.Name)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
+
+        var items = softwares
+            .Select(s =>
+            {
+                var manual = s.Manuals
+                    .Where(m => m.ManualType == ManualType.KullanimKilavuzu && !string.IsNullOrWhiteSpace(m.FilePath))
+                    .OrderByDescending(m => m.UploadedOn)
+                    .FirstOrDefault();
+
+                var manualTitle = manual?.Title;
+                var manualPath = manual?.FilePath;
+
+                if (string.IsNullOrWhiteSpace(manualPath))
+                {
+                    var projectPath = s.Request?.Project?.UserGuidePath;
+                    if (!string.IsNullOrWhiteSpace(projectPath))
+                    {
+                        manualPath = projectPath;
+                        manualTitle ??= $"{s.Name} Kullanım Kılavuzu";
+                    }
+                }
+
+                return new SoftwareCatalogItemViewModel
+                {
+                    Id = s.Id,
+                    Ad = s.Name,
+                    Aciklama = s.Description,
+                    Kategori = s.Category,
+                    BirimAdi = s.Department?.Name,
+                    KullanimKilavuzuBaslik = manualTitle,
+                    KullanimKilavuzuUrl = manualPath
+                };
+            })
+            .ToArray();
 
         var departments = await _context.Departments
             .OrderBy(d => d.Name)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 
-        var technologyValues = await _context.Softwares
-            .Where(s => !string.IsNullOrEmpty(s.TechnologyStack))
-            .Select(s => s.TechnologyStack!)
-            .ToListAsync(cancellationToken);
-
-        var technologies = technologyValues
-            .SelectMany(value => value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            .Select(value => value.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
         return new SoftwareCatalogViewModel
         {
             AramaMetni = search,
             BirimId = departmentId,
-            Teknoloji = technology,
-            Yazilimlar = softwares,
             Birimler = departments,
-            Teknolojiler = technologies
+            Yazilimlar = softwares,
+            Kayitlar = items
         };
     }
 
