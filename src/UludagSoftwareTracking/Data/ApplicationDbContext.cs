@@ -77,15 +77,19 @@ public class ApplicationDbContext : DbContext
                 .WithMany(d => d.Softwares)
                 .HasForeignKey(s => s.DepartmentId)
                 .OnDelete(DeleteBehavior.Restrict);
+            entity.HasMany(s => s.Manuals)
+                .WithOne(m => m.Software)
+                .HasForeignKey(m => m.SoftwareId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(s => s.Requests)
+                .WithOne(r => r.ExistingSoftware)
+                .HasForeignKey(r => r.ExistingSoftwareId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<SoftwareManual>(entity =>
         {
             entity.Property(m => m.Title).IsRequired().HasMaxLength(200);
-            entity.HasOne(m => m.Software)
-                .WithMany(s => s.Manuals)
-                .HasForeignKey(m => m.SoftwareId)
-                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<SoftwareRequest>(entity =>
@@ -100,10 +104,6 @@ public class ApplicationDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(r => r.RequestedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(r => r.ExistingSoftware)
-                .WithMany()
-                .HasForeignKey(r => r.ExistingSoftwareId)
-                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<RequestApproval>(entity =>

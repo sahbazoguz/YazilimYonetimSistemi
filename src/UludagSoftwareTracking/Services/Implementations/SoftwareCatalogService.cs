@@ -25,7 +25,7 @@ public class SoftwareCatalogService : ISoftwareCatalogService
         var query = _context.Softwares
             .Include(s => s.Department)
             .Include(s => s.Manuals)
-            .Include(s => s.Request)
+            .Include(s => s.Requests)
             .ThenInclude(r => r.Project)
             .Where(s => s.IsActive)
             .AsQueryable();
@@ -62,7 +62,11 @@ public class SoftwareCatalogService : ISoftwareCatalogService
 
                 if (string.IsNullOrWhiteSpace(manualPath))
                 {
-                    var projectPath = s.Request?.Project?.UserGuidePath;
+                    var projectPath = s.Requests
+                        .Where(r => r.Project != null && !string.IsNullOrWhiteSpace(r.Project.UserGuidePath))
+                        .Select(r => r.Project!.UserGuidePath)
+                        .FirstOrDefault(path => !string.IsNullOrWhiteSpace(path));
+
                     if (!string.IsNullOrWhiteSpace(projectPath))
                     {
                         manualPath = projectPath;

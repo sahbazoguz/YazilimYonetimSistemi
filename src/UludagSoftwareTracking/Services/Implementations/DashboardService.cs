@@ -159,6 +159,7 @@ public class DashboardService : IDashboardService
                     .ToArray();
                 break;
             case UserRole.Yazilimci when user is not null:
+                var developerId = user.Id;
                 activeProjects = await _context.Projects
                     .Where(p => p.Status == ProjectStatus.Planlama || p.Status == ProjectStatus.Analiz || p.Status == ProjectStatus.Gelistirme || p.Status == ProjectStatus.Test)
                     .Include(p => p.Request)
@@ -169,7 +170,7 @@ public class DashboardService : IDashboardService
                     .ToArrayAsync(cancellationToken);
 
                 tiles.Add(new DashboardTileViewModel { Baslik = "Aktif Proje", Deger = activeProjects.Length.ToString(), Stil = "success" });
-                tiles.Add(new DashboardTileViewModel { Baslik = "Atandığım Görev", Deger = activeProjects.Sum(p => p.Assignments.Count(a => a.UserId == user.Id)).ToString(), Stil = "primary" });
+                tiles.Add(new DashboardTileViewModel { Baslik = "Atandığım Görev", Deger = activeProjects.Sum(p => p.Assignments.Count(a => a.UserId == developerId)).ToString(), Stil = "primary" });
                 criticalRequests = activeProjects
                     .Select(p => new RequestListItemViewModel
                     {

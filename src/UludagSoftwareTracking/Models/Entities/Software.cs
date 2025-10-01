@@ -36,4 +36,6 @@ public class Software
     public bool IsActive { get; set; } = true;
 
     public ICollection<SoftwareManual> Manuals { get; set; } = new List<SoftwareManual>();
+
+    public ICollection<SoftwareRequest> Requests { get; set; } = new List<SoftwareRequest>();
 }
