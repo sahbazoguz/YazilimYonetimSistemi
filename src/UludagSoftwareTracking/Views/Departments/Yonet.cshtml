@@ -1,0 +1,164 @@
+@model DepartmentManagementViewModel
+@{
+    ViewData["Title"] = "Birim Yönetimi";
+}
+
+<section class="form-alani">
+    <h1>Birimler ve Görevlendirmeler</h1>
+    <p>Bu ekrandan birim ekleyebilir, silebilir ve birim kullanıcıları ile yetkililerini atayabilirsiniz.</p>
+</section>
+
+<section class="form-alani">
+    <h2>Yeni Birim Ekle</h2>
+    <form asp-action="Ekle" method="post">
+        <div>
+            <label asp-for="YeniBirim.Name"></label>
+            <input asp-for="YeniBirim.Name" />
+            <span asp-validation-for="YeniBirim.Name" class="bilgi-kutu uyari"></span>
+        </div>
+        <div>
+            <label asp-for="YeniBirim.Description"></label>
+            <textarea asp-for="YeniBirim.Description" rows="2"></textarea>
+        </div>
+        <div>
+            <label asp-for="YeniBirim.ContactEmail"></label>
+            <input asp-for="YeniBirim.ContactEmail" />
+            <span asp-validation-for="YeniBirim.ContactEmail" class="bilgi-kutu uyari"></span>
+        </div>
+        <div>
+            <label asp-for="YeniBirim.PhoneNumber"></label>
+            <input asp-for="YeniBirim.PhoneNumber" />
+        </div>
+        <button type="submit">Birim Ekle</button>
+    </form>
+</section>
+
+@if (Model.Departments.Any())
+{
+    <section class="form-alani">
+        <h2>Mevcut Birimler</h2>
+        <table class="tablo">
+            <thead>
+                <tr>
+                    <th>Birim</th>
+                    <th>Yetkililer</th>
+                    <th>Birim Kullanıcıları</th>
+                    <th>İletişim</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var birim in Model.Departments)
+            {
+                <tr>
+                    <td>
+                        <strong>@birim.Name</strong>
+                        @if (!string.IsNullOrWhiteSpace(birim.Description))
+                        {
+                            <div class="metin-aciklama">@birim.Description</div>
+                        }
+                    </td>
+                    <td>
+                        @if (birim.Yetkililer.Any())
+                        {
+                            <ul>
+                                @foreach (var yetkili in birim.Yetkililer)
+                                {
+                                    <li>
+                                        <span class="rozet">@yetkili.FullName</span>
+                                        <small>@yetkili.UserName</small>
+                                        <form asp-action="GorevdenAl" method="post" class="tek-satir-form">
+                                            <input type="hidden" name="userName" value="@yetkili.UserName" />
+                                            <button type="submit" class="buton-link kucuk">Görevden Al</button>
+                                        </form>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                        else
+                        {
+                            <span>-</span>
+                        }
+                    </td>
+                    <td>
+                        @if (birim.Kullanicilar.Any())
+                        {
+                            <ul>
+                                @foreach (var kullanici in birim.Kullanicilar)
+                                {
+                                    <li>
+                                        <span class="rozet">@kullanici.FullName</span>
+                                        <small>@kullanici.UserName</small>
+                                        <form asp-action="GorevdenAl" method="post" class="tek-satir-form">
+                                            <input type="hidden" name="userName" value="@kullanici.UserName" />
+                                            <button type="submit" class="buton-link kucuk">Görevden Al</button>
+                                        </form>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                        else
+                        {
+                            <span>-</span>
+                        }
+                    </td>
+                    <td>
+                        @if (!string.IsNullOrWhiteSpace(birim.ContactEmail))
+                        {
+                            <div><strong>E-posta:</strong> @birim.ContactEmail</div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(birim.PhoneNumber))
+                        {
+                            <div><strong>Telefon:</strong> @birim.PhoneNumber</div>
+                        }
+                    </td>
+                    <td>
+                        <form asp-action="Sil" method="post" class="tek-satir-form" onsubmit="return confirm('Birim silinsin mi?');">
+                            <input type="hidden" name="id" value="@birim.Id" />
+                            <button type="submit" class="buton-link kucuk">Sil</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </section>
+}
+else
+{
+    <p>Henüz tanımlı birim bulunmuyor.</p>
+}
+
+<section class="form-alani">
+    <h2>Birim Kullanıcısı / Yetkilisi Ata</h2>
+    <form asp-action="YetkiliAta" method="post">
+        <div>
+            <label asp-for="Yetkilendirme.DepartmentId"></label>
+            <select asp-for="Yetkilendirme.DepartmentId" asp-items="@(new SelectList(Model.Departments, nameof(DepartmentManagementRowViewModel.Id), nameof(DepartmentManagementRowViewModel.Name)))">
+                <option value="">Birim seçin</option>
+            </select>
+            <span asp-validation-for="Yetkilendirme.DepartmentId" class="bilgi-kutu uyari"></span>
+        </div>
+        <div>
+            <label asp-for="Yetkilendirme.UserName"></label>
+            <select asp-for="Yetkilendirme.UserName" asp-items="Model.KullaniciSecenekleri">
+                <option value="">Kullanıcı seçin</option>
+            </select>
+            <span asp-validation-for="Yetkilendirme.UserName" class="bilgi-kutu uyari"></span>
+        </div>
+        <div>
+            <label asp-for="Yetkilendirme.Role"></label>
+            <select asp-for="Yetkilendirme.Role">
+                <option value="">Rol seçin</option>
+                <option value="@((int)UserRole.BirimYetkilisi)">Birim Yetkilisi</option>
+                <option value="@((int)UserRole.BirimKullanicisi)">Birim Kullanıcısı</option>
+            </select>
+            <span asp-validation-for="Yetkilendirme.Role" class="bilgi-kutu uyari"></span>
+        </div>
+        <button type="submit">Görevlendir</button>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

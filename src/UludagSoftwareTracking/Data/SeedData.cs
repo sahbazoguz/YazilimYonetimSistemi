@@ -60,12 +60,12 @@ public static class SeedData
             .ToDictionaryAsync(d => d.Name, d => d.Id);
 
         const string adminUserName = "ULUDAG\\admin";
-        const string birimYetkilisiUserName = "ULUDAG\\birimyetkilisi";
-        const string birimKullanicisiUserName = "ULUDAG\\birimkullanici";
-        const string birimYetkilisiIibfUserName = "ULUDAG\\birimyetkilisi_iibf";
-        const string birimKullanicisiIibfUserName = "ULUDAG\\birimkullanici_iibf";
-        const string birimYetkilisiRektorlukUserName = "ULUDAG\\birimyetkilisi_rekt";
-        const string birimKullanicisiRektorlukUserName = "ULUDAG\\birimkullanici_rekt";
+        const string birimYetkilisiUserName = "ULUDAG\\birimyetkilisi1";
+        const string birimKullanicisiUserName = "ULUDAG\\birimkullanicisi1";
+        const string birimYetkilisiIibfUserName = "ULUDAG\\birimyetkilisi2";
+        const string birimKullanicisiIibfUserName = "ULUDAG\\birimkullanicisi2";
+        const string birimYetkilisiRektorlukUserName = "ULUDAG\\birimyetkilisi3";
+        const string birimKullanicisiRektorlukUserName = "ULUDAG\\birimkullanicisi3";
         const string degerlendiriciBirUserName = "ULUDAG\\deger1";
         const string degerlendiriciIkiUserName = "ULUDAG\\deger2";
         const string degerlendiriciUcUserName = "ULUDAG\\deger3";
@@ -109,8 +109,8 @@ public static class SeedData
             var birimYetkilisi = new UserProfile
             {
                 UserName = birimYetkilisiUserName,
-                FullName = "Birim Yetkilisi",
-                Email = "birim.yetkilisi@uludag.edu.tr",
+                FullName = "Mühendislik Birim Yetkilisi",
+                Email = "birim.yetkilisi1@uludag.edu.tr",
                 PasswordHash = defaultPasswordHash,
                 Role = UserRole.BirimYetkilisi,
                 DepartmentId = departmentLookup[muhendislikDepartmentName]
@@ -119,8 +119,8 @@ public static class SeedData
             var birimKullanicisi = new UserProfile
             {
                 UserName = birimKullanicisiUserName,
-                FullName = "Birim Kullanıcısı",
-                Email = "birim.kullanici@uludag.edu.tr",
+                FullName = "Mühendislik Birim Kullanıcısı",
+                Email = "birim.kullanici1@uludag.edu.tr",
                 PasswordHash = defaultPasswordHash,
                 Role = UserRole.BirimKullanicisi,
                 DepartmentId = departmentLookup[muhendislikDepartmentName]
@@ -130,7 +130,7 @@ public static class SeedData
             {
                 UserName = birimYetkilisiIibfUserName,
                 FullName = "İİBF Birim Yetkilisi",
-                Email = "birim.yetkilisi.iibf@uludag.edu.tr",
+                Email = "birim.yetkilisi2@uludag.edu.tr",
                 PasswordHash = defaultPasswordHash,
                 Role = UserRole.BirimYetkilisi,
                 DepartmentId = departmentLookup[iibfDepartmentName]
@@ -140,7 +140,7 @@ public static class SeedData
             {
                 UserName = birimKullanicisiIibfUserName,
                 FullName = "İİBF Birim Kullanıcısı",
-                Email = "birim.kullanici.iibf@uludag.edu.tr",
+                Email = "birim.kullanici2@uludag.edu.tr",
                 PasswordHash = defaultPasswordHash,
                 Role = UserRole.BirimKullanicisi,
                 DepartmentId = departmentLookup[iibfDepartmentName]
@@ -150,7 +150,7 @@ public static class SeedData
             {
                 UserName = birimYetkilisiRektorlukUserName,
                 FullName = "Rektörlük Birim Yetkilisi",
-                Email = "birim.yetkilisi.rekt@uludag.edu.tr",
+                Email = "birim.yetkilisi3@uludag.edu.tr",
                 PasswordHash = defaultPasswordHash,
                 Role = UserRole.BirimYetkilisi,
                 DepartmentId = departmentLookup[rektorlukDepartmentName]
@@ -160,7 +160,7 @@ public static class SeedData
             {
                 UserName = birimKullanicisiRektorlukUserName,
                 FullName = "Rektörlük Birim Kullanıcısı",
-                Email = "birim.kullanici.rekt@uludag.edu.tr",
+                Email = "birim.kullanici3@uludag.edu.tr",
                 PasswordHash = defaultPasswordHash,
                 Role = UserRole.BirimKullanicisi,
                 DepartmentId = departmentLookup[rektorlukDepartmentName]
