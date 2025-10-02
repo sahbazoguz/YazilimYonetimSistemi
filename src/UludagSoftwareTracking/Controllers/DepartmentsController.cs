@@ -4,7 +4,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using UludagSoftwareTracking.Models.Entities;
 using UludagSoftwareTracking.Models.ViewModels;
 using UludagSoftwareTracking.Services.Interfaces;
@@ -27,24 +26,7 @@ public class DepartmentsController : Controller
     [HttpGet]
     public async Task<IActionResult> Yonet(CancellationToken cancellationToken)
     {
-        var departments = await _departmentService.GetDepartmentsAsync(cancellationToken);
-        var users = await _userProfileService.GetAllAsync(cancellationToken);
-
-        var model = new DepartmentManagementViewModel
-        {
-            Departments = departments
-                .Select(MapRow)
-                .ToList(),
-            YeniBirim = new DepartmentInputModel(),
-            KullaniciSecenekleri = users
-                .Select(u => new SelectListItem
-                {
-                    Value = u.UserName,
-                    Text = $"{u.FullName} ({u.UserName}) - {u.Role}"
-                })
-                .ToList()
-        };
-
+        var model = await BuildViewModelAsync(null, cancellationToken);
         return View(model);
     }
 
@@ -59,20 +41,49 @@ public class DepartmentsController : Controller
 
         try
         {
-            var department = new Department
+            await _departmentService.CreateAsync(new Department
             {
                 Name = model.Name.Trim(),
                 Description = string.IsNullOrWhiteSpace(model.Description) ? null : model.Description.Trim(),
                 ContactEmail = string.IsNullOrWhiteSpace(model.ContactEmail) ? null : model.ContactEmail.Trim(),
                 PhoneNumber = string.IsNullOrWhiteSpace(model.PhoneNumber) ? null : model.PhoneNumber.Trim()
-            };
-
-            await _departmentService.CreateAsync(department, cancellationToken);
+            }, cancellationToken);
             TempData["Success"] = "Birim başarıyla eklendi.";
         }
         catch (Exception ex)
         {
             TempData["Warning"] = $"Birim eklenemedi: {ex.Message}";
+        }
+
+        return RedirectToAction(nameof(Yonet));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Guncelle(DepartmentUpdateInputModel model, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            TempData["Warning"] = "Lütfen birim bilgilerini kontrol edin.";
+            return RedirectToAction(nameof(Yonet));
+        }
+
+        try
+        {
+            await _departmentService.UpdateAsync(new Department
+            {
+                Id = model.Id,
+                Name = model.Name.Trim(),
+                Description = string.IsNullOrWhiteSpace(model.Description) ? null : model.Description.Trim(),
+                ContactEmail = string.IsNullOrWhiteSpace(model.ContactEmail) ? null : model.ContactEmail.Trim(),
+                PhoneNumber = string.IsNullOrWhiteSpace(model.PhoneNumber) ? null : model.PhoneNumber.Trim()
+            }, cancellationToken);
+
+            TempData["Success"] = "Birim bilgileri güncellendi.";
+        }
+        catch (Exception ex)
+        {
+            TempData["Warning"] = ex.Message;
         }
 
         return RedirectToAction(nameof(Yonet));
@@ -111,6 +122,13 @@ public class DepartmentsController : Controller
             return RedirectToAction(nameof(Yonet));
         }
 
+        var department = await _departmentService.GetByIdAsync(model.DepartmentId, cancellationToken);
+        if (department is null)
+        {
+            TempData["Warning"] = "Birim bulunamadı.";
+            return RedirectToAction(nameof(Yonet));
+        }
+
         var user = await _userProfileService.GetByUserNameAsync(model.UserName, cancellationToken);
         if (user is null)
         {
@@ -124,8 +142,20 @@ public class DepartmentsController : Controller
             return RedirectToAction(nameof(Yonet));
         }
 
+        if (user.DepartmentId == model.DepartmentId && user.Role == model.Role)
+        {
+            TempData["Warning"] = "Kullanıcı zaten bu birimde görevlendirilmiş.";
+            return RedirectToAction(nameof(Yonet));
+        }
+
+        var uyari = user.DepartmentId.HasValue && user.DepartmentId != model.DepartmentId
+            ? $"Kullanıcı {user.Department?.Name ?? "başka birim"} biriminden alınarak {department.Name} birimine taşındı."
+            : null;
+
         await _userProfileService.UpdateRoleAsync(user.UserName, model.Role, model.DepartmentId, cancellationToken);
-        TempData["Success"] = $"{user.FullName} için rol güncellendi.";
+        TempData["Success"] = uyari is null
+            ? $"{user.FullName} için görevlendirme yapıldı."
+            : $"{user.FullName} için görevlendirme yapıldı. {uyari}";
         return RedirectToAction(nameof(Yonet));
     }
 
@@ -157,6 +187,26 @@ public class DepartmentsController : Controller
         return RedirectToAction(nameof(Yonet));
     }
 
+    private async Task<DepartmentManagementViewModel> BuildViewModelAsync(
+        DepartmentInputModel? yeniBirim,
+        CancellationToken cancellationToken)
+    {
+        var departments = await _departmentService.GetDepartmentsAsync(cancellationToken);
+        var users = await _userProfileService.GetAllAsync(cancellationToken);
+
+        return new DepartmentManagementViewModel
+        {
+            Departments = departments.Select(MapRow).ToList(),
+            YeniBirim = yeniBirim ?? new DepartmentInputModel(),
+            KullaniciSecenekleri = users
+                .Where(u => u.Role != UserRole.Admin)
+                .Where(u => u.IsActive)
+                .Select(MapOption)
+                .OrderBy(u => u.FullName)
+                .ToList()
+        };
+    }
+
     private static DepartmentManagementRowViewModel MapRow(Department department)
     {
         return new DepartmentManagementRowViewModel
@@ -179,6 +229,19 @@ public class DepartmentsController : Controller
         };
     }
 
+    private static UserAssignmentOptionViewModel MapOption(UserProfile user)
+    {
+        return new UserAssignmentOptionViewModel
+        {
+            UserName = user.UserName,
+            FullName = user.FullName,
+            Email = user.Email,
+            CurrentRole = user.Role,
+            DepartmentId = user.DepartmentId,
+            DepartmentName = user.Department?.Name
+        };
+    }
+
     private static UserSummaryViewModel ToSummary(UserProfile user)
     {
         return new UserSummaryViewModel
@@ -191,22 +254,7 @@ public class DepartmentsController : Controller
 
     private async Task<IActionResult> ReturnManageViewWithModelStateAsync(CancellationToken cancellationToken, DepartmentInputModel yeniBirim)
     {
-        var departments = await _departmentService.GetDepartmentsAsync(cancellationToken);
-        var users = await _userProfileService.GetAllAsync(cancellationToken);
-
-        var model = new DepartmentManagementViewModel
-        {
-            Departments = departments.Select(MapRow).ToList(),
-            YeniBirim = yeniBirim,
-            KullaniciSecenekleri = users
-                .Select(u => new SelectListItem
-                {
-                    Value = u.UserName,
-                    Text = $"{u.FullName} ({u.UserName}) - {u.Role}"
-                })
-                .ToList()
-        };
-
+        var model = await BuildViewModelAsync(yeniBirim, cancellationToken);
         return View("Yonet", model);
     }
 }

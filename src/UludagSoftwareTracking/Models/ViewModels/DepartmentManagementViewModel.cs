@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using UludagSoftwareTracking.Models.Entities;
 
 namespace UludagSoftwareTracking.Models.ViewModels;
@@ -12,9 +11,8 @@ public class DepartmentManagementViewModel
 
     public DepartmentInputModel YeniBirim { get; set; } = new();
 
-    public DepartmentAssignmentInputModel Yetkilendirme { get; set; } = new();
-
-    public IReadOnlyList<SelectListItem> KullaniciSecenekleri { get; set; } = Array.Empty<SelectListItem>();
+    public IReadOnlyList<UserAssignmentOptionViewModel> KullaniciSecenekleri { get; set; } =
+        Array.Empty<UserAssignmentOptionViewModel>();
 }
 
 public class DepartmentManagementRowViewModel
@@ -43,6 +41,21 @@ public class UserSummaryViewModel
     public string? Email { get; set; }
 }
 
+public class UserAssignmentOptionViewModel
+{
+    public string UserName { get; set; } = string.Empty;
+
+    public string FullName { get; set; } = string.Empty;
+
+    public UserRole CurrentRole { get; set; }
+
+    public int? DepartmentId { get; set; }
+
+    public string? DepartmentName { get; set; }
+
+    public string? Email { get; set; }
+}
+
 public class DepartmentInputModel
 {
     [Required]
@@ -62,6 +75,12 @@ public class DepartmentInputModel
     [Display(Name = "Telefon")]
     [StringLength(25)]
     public string? PhoneNumber { get; set; }
+}
+
+public class DepartmentUpdateInputModel : DepartmentInputModel
+{
+    [Required]
+    public int Id { get; set; }
 }
 
 public class DepartmentAssignmentInputModel
