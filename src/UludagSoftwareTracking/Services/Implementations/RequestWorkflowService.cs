@@ -35,7 +35,12 @@ public class RequestWorkflowService : IRequestWorkflowService
     public async Task<RequestOverviewViewModel> GetRequestsForUserAsync(int userId, CancellationToken cancellationToken = default)
     {
         var requests = await _context.SoftwareRequests
-            .Where(r => r.RequestedByUserId == userId)
+            .Where(r =>
+                r.RequestedByUserId == userId
+                || (r.ExistingSoftware != null && r.ExistingSoftware.Responsibilities.Any(res =>
+                    res.UserId == userId && res.ResponsibilityType == SoftwareResponsibilityType.BirimKullanicisi))
+                || (r.Project != null && r.Project.ReleasedSoftware != null && r.Project.ReleasedSoftware.Responsibilities.Any(res =>
+                    res.UserId == userId && res.ResponsibilityType == SoftwareResponsibilityType.BirimKullanicisi)))
             .Include(r => r.Department)
             .Include(r => r.RequestedByUser)
             .OrderByDescending(r => r.CreatedAt)

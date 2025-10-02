@@ -44,7 +44,12 @@ public class DashboardService : IDashboardService
             case UserRole.BirimKullanicisi when user is not null:
                 var birimKullanici = user;
                 var myRequests = await _context.SoftwareRequests
-                    .Where(r => r.RequestedByUserId == birimKullanici.Id)
+                    .Where(r =>
+                        r.RequestedByUserId == birimKullanici.Id
+                        || (r.ExistingSoftware != null && r.ExistingSoftware.Responsibilities.Any(res =>
+                            res.UserId == birimKullanici.Id && res.ResponsibilityType == SoftwareResponsibilityType.BirimKullanicisi))
+                        || (r.Project != null && r.Project.ReleasedSoftware != null && r.Project.ReleasedSoftware.Responsibilities.Any(res =>
+                            res.UserId == birimKullanici.Id && res.ResponsibilityType == SoftwareResponsibilityType.BirimKullanicisi)))
                     .Include(r => r.Department)
                     .OrderByDescending(r => r.CreatedAt)
                     .AsNoTracking()
