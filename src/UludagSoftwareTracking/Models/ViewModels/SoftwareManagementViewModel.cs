@@ -56,6 +56,7 @@ public class SoftwareEditInputModel
     public string? Description { get; set; }
 
     [Display(Name = "Sorumlu Birim")]
+    [Required(ErrorMessage = "Sorumlu birim seçilmelidir.")]
     public int? DepartmentId { get; set; }
 
     [Display(Name = "Destek E-posta")]

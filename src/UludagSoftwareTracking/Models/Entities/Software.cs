@@ -40,4 +40,8 @@ public class Software
     public ICollection<SoftwareRequest> Requests { get; set; } = new List<SoftwareRequest>();
 
     public ICollection<SoftwareResponsibility> Responsibilities { get; set; } = new List<SoftwareResponsibility>();
+
+    public int? CatalogRequestId { get; set; }
+
+    public SoftwareRequest? CatalogRequest { get; set; }
 }

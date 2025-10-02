@@ -8,6 +8,7 @@ using UludagSoftwareTracking.Data;
 using UludagSoftwareTracking.Models.Entities;
 using UludagSoftwareTracking.Models.ViewModels;
 using UludagSoftwareTracking.Services.Interfaces;
+using UludagSoftwareTracking.Services.Security;
 
 namespace UludagSoftwareTracking.Services.Implementations;
 
@@ -105,26 +106,104 @@ public class SoftwareManagementService : ISoftwareManagementService
         };
     }
 
-    public async Task CreateSoftwareAsync(SoftwareEditInputModel model, CancellationToken cancellationToken = default)
+    public async Task CreateSoftwareAsync(SoftwareEditInputModel model, int actingUserId, CancellationToken cancellationToken = default)
     {
         if (model is null)
         {
             throw new ArgumentNullException(nameof(model));
         }
 
-        var entity = new Software
+        if (model.DepartmentId is null)
         {
-            Name = model.Name.Trim(),
-            Description = string.IsNullOrWhiteSpace(model.Description) ? null : model.Description.Trim(),
-            DepartmentId = model.DepartmentId,
+            throw new InvalidOperationException("Manuel katalog kaydı için birim seçilmelidir.");
+        }
+
+        var now = DateTime.UtcNow;
+        var trimmedName = model.Name.Trim();
+        var sanitizedDescription = string.IsNullOrWhiteSpace(model.Description)
+            ? $"{trimmedName} manuel katalog kaydı."
+            : model.Description.Trim();
+
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+
+        var departmentId = model.DepartmentId.Value;
+        if (departmentId <= 0)
+        {
+            throw new InvalidOperationException("Manuel katalog kaydı için geçerli birim seçilmelidir.");
+        }
+        var software = new Software
+        {
+            Name = trimmedName,
+            Description = sanitizedDescription,
+            DepartmentId = departmentId,
             SupportContact = string.IsNullOrWhiteSpace(model.SupportContact) ? null : model.SupportContact.Trim(),
             WebsiteUrl = string.IsNullOrWhiteSpace(model.WebsiteUrl) ? null : model.WebsiteUrl.Trim(),
             IsActive = true,
-            CreatedDate = DateTime.UtcNow
+            CreatedDate = now
         };
 
-        _context.Softwares.Add(entity);
+        await _context.Softwares.AddAsync(software, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
+
+        var request = new SoftwareRequest
+        {
+            Title = trimmedName,
+            Description = sanitizedDescription,
+            DepartmentId = departmentId,
+            RequestedByUserId = actingUserId,
+            Priority = RequestPriority.Orta,
+            Status = RequestStatus.Gelistirmede,
+            CreatedAt = now,
+            UpdatedAt = now,
+            ExistingSoftwareId = software.Id
+        };
+
+        await _context.SoftwareRequests.AddAsync(request, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        var project = new Project
+        {
+            RequestId = request.Id,
+            Name = trimmedName,
+            Description = sanitizedDescription,
+            Status = ProjectStatus.Gelistirme,
+            StartDate = now,
+            ReleasedSoftwareId = software.Id
+        };
+
+        await _context.Projects.AddAsync(project, cancellationToken);
+
+        request.Project = project;
+
+        var approval = new RequestApproval
+        {
+            RequestId = request.Id,
+            Status = ApprovalStatus.Onaylandi,
+            DecidedAt = now,
+            Notes = "Manuel katalog kaydı",
+            ApprovedByUserId = actingUserId
+        };
+
+        var assessment = new RequestAssessment
+        {
+            RequestId = request.Id,
+            Stage = AssessmentStage.BaskanOnayi,
+            Result = AssessmentResult.YeniGelistirme,
+            AssessedOn = now,
+            Notes = "Manuel katalog kaydı",
+            AssessedByUserId = actingUserId,
+            ExistingSoftwareId = software.Id
+        };
+
+        await _context.RequestApprovals.AddAsync(approval, cancellationToken);
+        await _context.RequestAssessments.AddAsync(assessment, cancellationToken);
+
+        software.CatalogRequestId = request.Id;
+        software.CatalogRequest = request;
+        software.UpdatedDate = now;
+
+        await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     public async Task UpdateSoftwareAsync(SoftwareEditInputModel model, CancellationToken cancellationToken = default)
@@ -140,12 +219,46 @@ public class SoftwareManagementService : ISoftwareManagementService
             throw new InvalidOperationException("Yazılım kaydı bulunamadı.");
         }
 
+        var sanitizedDescription = string.IsNullOrWhiteSpace(model.Description) ? null : model.Description.Trim();
+
+        if (model.DepartmentId is null || model.DepartmentId.Value <= 0)
+        {
+            throw new InvalidOperationException("Geçerli birim seçilmelidir.");
+        }
+
         software.Name = model.Name.Trim();
-        software.Description = string.IsNullOrWhiteSpace(model.Description) ? null : model.Description.Trim();
-        software.DepartmentId = model.DepartmentId;
+        software.Description = sanitizedDescription;
+        software.DepartmentId = model.DepartmentId.Value;
         software.SupportContact = string.IsNullOrWhiteSpace(model.SupportContact) ? null : model.SupportContact.Trim();
         software.WebsiteUrl = string.IsNullOrWhiteSpace(model.WebsiteUrl) ? null : model.WebsiteUrl.Trim();
         software.UpdatedDate = DateTime.UtcNow;
+
+        if (software.CatalogRequestId.HasValue)
+        {
+            var request = await _context.SoftwareRequests
+                .Include(r => r.Project)
+                .FirstOrDefaultAsync(r => r.Id == software.CatalogRequestId.Value, cancellationToken);
+
+            if (request is not null)
+            {
+                software.CatalogRequest = request;
+                var fallbackDescription = sanitizedDescription ?? software.Name;
+                request.Title = software.Name;
+                request.Description = fallbackDescription;
+                request.UpdatedAt = DateTime.UtcNow;
+
+                if (software.DepartmentId.HasValue)
+                {
+                    request.DepartmentId = software.DepartmentId.Value;
+                }
+
+                if (request.Project is not null)
+                {
+                    request.Project.Name = software.Name;
+                    request.Project.Description = fallbackDescription;
+                }
+            }
+        }
 
         await _context.SaveChangesAsync(cancellationToken);
     }
@@ -177,8 +290,77 @@ public class SoftwareManagementService : ISoftwareManagementService
         SyncResponsibilities(software, SoftwareResponsibilityType.BirimKullanicisi, unitUserIds);
         SyncResponsibilities(software, SoftwareResponsibilityType.BirimYetkilisi, unitManagerIds);
 
+        await SyncCatalogAssignmentsAsync(software, developerIds, cancellationToken);
+
         software.UpdatedDate = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task SyncCatalogAssignmentsAsync(Software software, IReadOnlyCollection<int> developerIds, CancellationToken cancellationToken)
+    {
+        if (!software.CatalogRequestId.HasValue)
+        {
+            return;
+        }
+
+        var request = await _context.SoftwareRequests
+            .Include(r => r.Project)
+                .ThenInclude(p => p!.Assignments)
+            .FirstOrDefaultAsync(r => r.Id == software.CatalogRequestId.Value, cancellationToken);
+
+        if (request?.Project is null)
+        {
+            return;
+        }
+
+        if (request.Project.Status == ProjectStatus.Planlama || request.Project.Status == ProjectStatus.Analiz)
+        {
+            request.Project.Status = ProjectStatus.Gelistirme;
+        }
+
+        var developerRoles = new[]
+        {
+            RoleConstants.Roles.Yazilimci,
+            RoleConstants.Roles.EkipLideri,
+            RoleConstants.Roles.TestYazilimcisi
+        };
+
+        var existingAssignments = request.Project.Assignments
+            .Where(a => developerRoles.Contains(a.AssignedRole))
+            .ToList();
+
+        if (existingAssignments.Count > 0)
+        {
+            _context.ProjectAssignments.RemoveRange(existingAssignments);
+            foreach (var assignment in existingAssignments)
+            {
+                request.Project.Assignments.Remove(assignment);
+            }
+        }
+
+        if (developerIds.Count == 0)
+        {
+            request.UpdatedAt = DateTime.UtcNow;
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        foreach (var developerId in developerIds)
+        {
+            var assignment = new ProjectAssignment
+            {
+                ProjectId = request.Project.Id,
+                UserId = developerId,
+                AssignedRole = RoleConstants.Roles.Yazilimci,
+                AssignedOn = now,
+                CompletionPercent = 0
+            };
+
+            request.Project.Assignments.Add(assignment);
+            await _context.ProjectAssignments.AddAsync(assignment, cancellationToken);
+        }
+
+        request.UpdatedAt = DateTime.UtcNow;
     }
 
     private async Task<List<int>> FilterUsersByRoleAsync(IEnumerable<int>? userIds, UserRole expectedRole, CancellationToken cancellationToken)

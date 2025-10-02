@@ -418,6 +418,9 @@ namespace UludagSoftwareTracking.Migrations
 
                 SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                b.Property<int?>("CatalogRequestId")
+                    .HasColumnType("int");
+
                 b.Property<string>("Category")
                     .HasMaxLength(150)
                     .HasColumnType("nvarchar(150)");
@@ -456,6 +459,8 @@ namespace UludagSoftwareTracking.Migrations
                     .HasColumnType("nvarchar(300)");
 
                 b.HasKey("Id");
+
+                b.HasIndex("CatalogRequestId");
 
                 b.HasIndex("DepartmentId");
 
@@ -823,10 +828,17 @@ namespace UludagSoftwareTracking.Migrations
 
             modelBuilder.Entity("UludagSoftwareTracking.Models.Entities.Software", b =>
             {
+                b.HasOne("UludagSoftwareTracking.Models.Entities.SoftwareRequest", "CatalogRequest")
+                    .WithMany()
+                    .HasForeignKey("CatalogRequestId")
+                    .OnDelete(DeleteBehavior.SetNull);
+
                 b.HasOne("UludagSoftwareTracking.Models.Entities.Department", "Department")
                     .WithMany("Softwares")
                     .HasForeignKey("DepartmentId")
                     .OnDelete(DeleteBehavior.Restrict);
+
+                b.Navigation("CatalogRequest");
 
                 b.Navigation("Department");
             });

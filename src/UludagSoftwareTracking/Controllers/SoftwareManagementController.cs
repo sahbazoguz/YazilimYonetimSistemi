@@ -13,10 +13,14 @@ namespace UludagSoftwareTracking.Controllers;
 public class SoftwareManagementController : Controller
 {
     private readonly ISoftwareManagementService _softwareManagementService;
+    private readonly IUserContextService _userContextService;
 
-    public SoftwareManagementController(ISoftwareManagementService softwareManagementService)
+    public SoftwareManagementController(
+        ISoftwareManagementService softwareManagementService,
+        IUserContextService userContextService)
     {
         _softwareManagementService = softwareManagementService;
+        _userContextService = userContextService;
     }
 
     [HttpGet]
@@ -36,9 +40,15 @@ public class SoftwareManagementController : Controller
             return RedirectToAction(nameof(Yonet));
         }
 
+        var user = await _userContextService.GetCurrentUserAsync(cancellationToken);
+        if (user is null)
+        {
+            return Forbid();
+        }
+
         try
         {
-            await _softwareManagementService.CreateSoftwareAsync(model, cancellationToken);
+            await _softwareManagementService.CreateSoftwareAsync(model, user.Id, cancellationToken);
             TempData["Success"] = "Yazılım başarıyla eklendi.";
         }
         catch (Exception ex)

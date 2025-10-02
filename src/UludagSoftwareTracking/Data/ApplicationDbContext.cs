@@ -87,6 +87,10 @@ public class ApplicationDbContext : DbContext
                 .WithOne(r => r.ExistingSoftware)
                 .HasForeignKey(r => r.ExistingSoftwareId)
                 .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(s => s.CatalogRequest)
+                .WithMany()
+                .HasForeignKey(s => s.CatalogRequestId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<SoftwareManual>(entity =>

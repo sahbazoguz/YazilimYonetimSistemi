@@ -8,7 +8,7 @@ public interface ISoftwareManagementService
 {
     Task<SoftwareManagementViewModel> GetManagementViewModelAsync(CancellationToken cancellationToken = default);
 
-    Task CreateSoftwareAsync(SoftwareEditInputModel model, CancellationToken cancellationToken = default);
+    Task CreateSoftwareAsync(SoftwareEditInputModel model, int actingUserId, CancellationToken cancellationToken = default);
 
     Task UpdateSoftwareAsync(SoftwareEditInputModel model, CancellationToken cancellationToken = default);
 

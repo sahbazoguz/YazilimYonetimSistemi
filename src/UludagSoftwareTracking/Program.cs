@@ -63,7 +63,6 @@ builder.Services.AddScoped<IUserContextService, UserContextService>();
 builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 builder.Services.AddScoped<ISoftwareCatalogService, SoftwareCatalogService>();
 builder.Services.AddScoped<IRequestWorkflowService, RequestWorkflowService>();
-builder.Services.AddScoped<IManualService, ManualService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IDepartmentService, DepartmentService>();
 builder.Services.AddScoped<ISoftwareManagementService, SoftwareManagementService>();
