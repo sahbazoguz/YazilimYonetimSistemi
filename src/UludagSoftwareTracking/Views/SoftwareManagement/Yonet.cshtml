@@ -145,7 +145,14 @@
                                     <option value="">Birim Seçilmedi</option>
                                     @foreach (var birim in Model.Birimler)
                                     {
-                                        <option value="@birim.Id" @(yazilim.Duzenleme.DepartmentId == birim.Id ? "selected" : null)>@birim.Name</option>
+                                        if (yazilim.Duzenleme.DepartmentId == birim.Id)
+                                        {
+                                            <option value="@birim.Id" selected>@birim.Name</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@birim.Id">@birim.Name</option>
+                                        }
                                     }
                                 </select>
                             </div>
@@ -169,7 +176,14 @@
                                 <select name="YazilimciIdleri" multiple size="5">
                                     @foreach (var secenek in gelistiriciSecenekleri)
                                     {
-                                        <option value="@secenek.Value" @(secenek.Selected ? "selected" : null)>@secenek.Text</option>
+                                        if (secenek.Selected)
+                                        {
+                                            <option value="@secenek.Value" selected>@secenek.Text</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@secenek.Value">@secenek.Text</option>
+                                        }
                                     }
                                 </select>
                             </div>
@@ -178,7 +192,14 @@
                                 <select name="BirimKullanicisiIdleri" multiple size="5">
                                     @foreach (var secenek in birimKullanicisiSecenekleri)
                                     {
-                                        <option value="@secenek.Value" @(secenek.Selected ? "selected" : null)>@secenek.Text</option>
+                                        if (secenek.Selected)
+                                        {
+                                            <option value="@secenek.Value" selected>@secenek.Text</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@secenek.Value">@secenek.Text</option>
+                                        }
                                     }
                                 </select>
                             </div>
@@ -187,7 +208,14 @@
                                 <select name="BirimYetkilisiIdleri" multiple size="5">
                                     @foreach (var secenek in birimYetkilisiSecenekleri)
                                     {
-                                        <option value="@secenek.Value" @(secenek.Selected ? "selected" : null)>@secenek.Text</option>
+                                        if (secenek.Selected)
+                                        {
+                                            <option value="@secenek.Value" selected>@secenek.Text</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@secenek.Value">@secenek.Text</option>
+                                        }
                                     }
                                 </select>
                             </div>

@@ -42,8 +42,9 @@ public class DashboardService : IDashboardService
                 tiles.Add(new DashboardTileViewModel { Baslik = "Toplam Kılavuz", Deger = recentManuals.Length.ToString(), Stil = "info" });
                 break;
             case UserRole.BirimKullanicisi when user is not null:
+                var birimKullanici = user;
                 var myRequests = await _context.SoftwareRequests
-                    .Where(r => r.RequestedByUserId == user.Id)
+                    .Where(r => r.RequestedByUserId == birimKullanici.Id)
                     .Include(r => r.Department)
                     .OrderByDescending(r => r.CreatedAt)
                     .AsNoTracking()
@@ -60,7 +61,7 @@ public class DashboardService : IDashboardService
                         Baslik = r.Title,
                         Durum = r.Status.ToString(),
                         BirimAdi = r.Department?.Name ?? string.Empty,
-                        TalepSahibi = user.FullName,
+                        TalepSahibi = birimKullanici.FullName,
                         Oncelik = r.Priority,
                         OlusturmaTarihi = r.CreatedAt
                     })
@@ -70,8 +71,9 @@ public class DashboardService : IDashboardService
             case UserRole.BirimKullanicisi:
                 break;
             case UserRole.BirimYetkilisi when user is not null:
+                var yetkili = user;
                 var departmentRequests = await _context.SoftwareRequests
-                    .Where(r => r.DepartmentId == user.DepartmentId)
+                    .Where(r => r.DepartmentId == yetkili.DepartmentId)
                     .Include(r => r.Department)
                     .Include(r => r.RequestedByUser)
                     .AsNoTracking()
@@ -101,7 +103,8 @@ public class DashboardService : IDashboardService
             case UserRole.DegerlendiriciBir when user is not null:
             case UserRole.DegerlendiriciIki when user is not null:
             case UserRole.DegerlendiriciUc when user is not null:
-                var stage = MapStage(user.Role);
+                var evaluator = user;
+                var stage = MapStage(evaluator.Role);
                 var assessmentCandidates = await _context.SoftwareRequests
                     .Where(r => r.Status == RequestStatus.Degerlendirmede)
                     .Include(r => r.Assessments)
@@ -159,7 +162,8 @@ public class DashboardService : IDashboardService
                     .ToArray();
                 break;
             case UserRole.Yazilimci when user is not null:
-                var developerId = user.Id;
+                var developerUser = user;
+                var developerId = developerUser.Id;
                 activeProjects = await _context.Projects
                     .Where(p => p.Status == ProjectStatus.Planlama || p.Status == ProjectStatus.Analiz || p.Status == ProjectStatus.Gelistirme || p.Status == ProjectStatus.Test)
                     .Include(p => p.Request)

@@ -159,10 +159,6 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<WorkflowDefinition>(entity =>
         {
             entity.Property(w => w.Title).IsRequired().HasMaxLength(150);
-            entity.HasOne(w => w.Project)
-                .WithMany(p => p.WorkflowDefinitions)
-                .HasForeignKey(w => w.ProjectId)
-                .OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(w => new { w.ProjectId, w.DisplayOrder });
         });
 
