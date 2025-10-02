@@ -726,6 +726,88 @@ body {
     margin-right: 0.5rem;
 }
 
+.kilavuz-kartlar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+}
+
+.kilavuz-karti {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.kart-baslik {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.etiket {
+    background-color: #e0f2fe;
+    color: #0369a1;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.kart-baslik .etiket {
+    margin-left: auto;
+}
+
+.kilavuz-formu {
+    padding: 1rem;
+    border: 1px solid #e0e7ff;
+    border-radius: 8px;
+    background-color: #f8faff;
+}
+
+.kilavuz-formu h3 {
+    margin-top: 0;
+    font-size: 1.05rem;
+}
+
+.kilavuz-formu form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.kilavuz-formu input,
+.kilavuz-formu textarea {
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid #cdd5f5;
+    border-radius: 6px;
+}
+
+.kilavuz-formu button {
+    align-self: flex-start;
+    padding: 0.55rem 1.2rem;
+}
+
+.cift-kolon {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75rem;
+}
+
+.kilavuz-detay {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.kilavuz-detay .yardim-metin {
+    display: block;
+}
+
 .tek-satir-form {
     margin-top: 0.75rem;
 }

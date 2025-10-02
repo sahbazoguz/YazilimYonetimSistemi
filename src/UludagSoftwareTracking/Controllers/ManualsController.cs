@@ -30,8 +30,8 @@ public class ManualsController : Controller
             return Forbid();
         }
 
-        var manuals = await _manualService.GetManualsAsync(user.Id, cancellationToken);
-        return View(manuals);
+        var overview = await _manualService.GetManualsAsync(user.Id, cancellationToken);
+        return View(overview);
     }
 
     public async Task<IActionResult> Yukle(int? softwareId, CancellationToken cancellationToken)
@@ -52,7 +52,7 @@ public class ManualsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Yukle(ManualUploadViewModel model, CancellationToken cancellationToken)
+    public async Task<IActionResult> Yukle(ManualUploadViewModel model, bool returnToIndex = false, CancellationToken cancellationToken = default)
     {
         var user = await _userContextService.GetCurrentUserAsync(cancellationToken);
         if (!KullaniciKilavuzYetkisineSahip(user))
@@ -62,6 +62,12 @@ public class ManualsController : Controller
 
         if (!ModelState.IsValid)
         {
+            if (returnToIndex)
+            {
+                TempData["Warning"] = "Lütfen kılavuz bilgilerini kontrol edin.";
+                return RedirectToAction(nameof(Index));
+            }
+
             var refreshed = await _manualService.GetManualUploadModelAsync(user.Id, model.SoftwareId, cancellationToken);
             refreshed.Title = model.Title;
             refreshed.FilePath = model.FilePath;

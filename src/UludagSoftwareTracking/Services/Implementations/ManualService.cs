@@ -24,22 +24,99 @@ public class ManualService : IManualService
         _notificationService = notificationService;
     }
 
-    public async Task<IReadOnlyList<SoftwareManual>> GetManualsAsync(int userId, CancellationToken cancellationToken = default)
+    public async Task<ManualOverviewViewModel> GetManualsAsync(int userId, CancellationToken cancellationToken = default)
     {
-        var yetkiliYazilimIdleri = await GetAuthorizedSoftwareIdsAsync(userId, cancellationToken);
-
-        if (yetkiliYazilimIdleri.Length == 0)
-        {
-            return Array.Empty<SoftwareManual>();
-        }
-
-        return await _context.SoftwareManuals
-            .Where(m => yetkiliYazilimIdleri.Contains(m.SoftwareId))
-            .Include(m => m.Software)
-            .Include(m => m.UploadedByUser)
-            .OrderByDescending(m => m.UploadedOn)
+        var responsibilities = await _context.SoftwareResponsibilities
+            .Where(r => r.UserId == userId)
+            .Include(r => r.Software)
+                .ThenInclude(s => s.Department)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
+
+        if (responsibilities.Count == 0)
+        {
+            return new ManualOverviewViewModel();
+        }
+
+        var softwareIds = responsibilities
+            .Select(r => r.SoftwareId)
+            .Distinct()
+            .ToArray();
+
+        var manuals = await _context.SoftwareManuals
+            .Where(m => softwareIds.Contains(m.SoftwareId))
+            .Include(m => m.UploadedByUser)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        var manualLookup = manuals
+            .GroupBy(m => m.SoftwareId)
+            .ToDictionary(g => g.Key, g => g
+                .OrderByDescending(m => m.UploadedOn)
+                .ToList());
+
+        var items = responsibilities
+            .GroupBy(r => r.SoftwareId)
+            .Select(group =>
+            {
+                var software = group.First().Software;
+                if (software is null)
+                {
+                    return null;
+                }
+
+                manualLookup.TryGetValue(software.Id, out var manualList);
+
+                SoftwareManual? teknik = manualList?
+                    .FirstOrDefault(m => m.ManualType == ManualType.TeknikKilavuz);
+                SoftwareManual? kullanim = manualList?
+                    .FirstOrDefault(m => m.ManualType == ManualType.KullanimKilavuzu);
+
+                var roller = group
+                    .Select(r => r.ResponsibilityType)
+                    .Distinct()
+                    .ToArray();
+
+                return new ManualOverviewItemViewModel
+                {
+                    Id = software.Id,
+                    Ad = software.Name,
+                    BirimAdi = software.Department?.Name,
+                    Aciklama = software.Description,
+                    TeknikKilavuzYetkisi = roller.Contains(SoftwareResponsibilityType.Yazilimci),
+                    KullanimKilavuzuYetkisi = roller.Contains(SoftwareResponsibilityType.BirimKullanicisi) ||
+                                              roller.Contains(SoftwareResponsibilityType.BirimYetkilisi),
+                    TeknikKilavuz = teknik is null ? null : new ManualFileSummaryViewModel
+                    {
+                        Id = teknik.Id,
+                        Baslik = teknik.Title,
+                        DosyaYolu = teknik.FilePath,
+                        Versiyon = teknik.Version,
+                        YuklenmeZamani = teknik.UploadedOn,
+                        Yukleyen = teknik.UploadedByUser?.FullName ?? teknik.UploadedByUser?.UserName,
+                        DegisimNotu = teknik.ChangeLog
+                    },
+                    KullanimKilavuzu = kullanim is null ? null : new ManualFileSummaryViewModel
+                    {
+                        Id = kullanim.Id,
+                        Baslik = kullanim.Title,
+                        DosyaYolu = kullanim.FilePath,
+                        Versiyon = kullanim.Version,
+                        YuklenmeZamani = kullanim.UploadedOn,
+                        Yukleyen = kullanim.UploadedByUser?.FullName ?? kullanim.UploadedByUser?.UserName,
+                        DegisimNotu = kullanim.ChangeLog
+                    }
+                };
+            })
+            .Where(item => item is not null)
+            .Select(item => item!)
+            .OrderBy(item => item.Ad)
+            .ToList();
+
+        return new ManualOverviewViewModel
+        {
+            Yazilimlar = items
+        };
     }
 
     public async Task<ManualUploadViewModel> GetManualUploadModelAsync(int userId, int? softwareId, CancellationToken cancellationToken = default)

@@ -49,6 +49,7 @@
                         <li><a asp-controller="Dashboard" asp-action="Index">Proje Panosu</a></li>
                     }
                     if (User.IsInRole(RoleConstants.Roles.BirimKullanicisi) ||
+                        User.IsInRole(RoleConstants.Roles.BirimYetkilisi) ||
                         User.IsInRole(RoleConstants.Roles.Yazilimci))
                     {
                         <li><a asp-controller="Manuals" asp-action="Index">Kılavuz Yönetimi</a></li>
