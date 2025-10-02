@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -23,23 +24,29 @@ public class ManualsController : Controller
 
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
-        if (!KullaniciKilavuzYetkisineSahip())
+        var user = await _userContextService.GetCurrentUserAsync(cancellationToken);
+        if (!KullaniciKilavuzYetkisineSahip(user))
         {
             return Forbid();
         }
 
-        var manuals = await _manualService.GetManualsAsync(cancellationToken);
+        var manuals = await _manualService.GetManualsAsync(user.Id, cancellationToken);
         return View(manuals);
     }
 
     public async Task<IActionResult> Yukle(int? softwareId, CancellationToken cancellationToken)
     {
-        if (!KullaniciKilavuzYetkisineSahip())
+        var user = await _userContextService.GetCurrentUserAsync(cancellationToken);
+        if (!KullaniciKilavuzYetkisineSahip(user))
         {
             return Forbid();
         }
 
-        var viewModel = await _manualService.GetManualUploadModelAsync(softwareId, cancellationToken);
+        var viewModel = await _manualService.GetManualUploadModelAsync(user.Id, softwareId, cancellationToken);
+        if (!viewModel.Yazilimlar.Any())
+        {
+            TempData["Warning"] = "Yetkili olduğunuz bir yazılım bulunmuyor.";
+        }
         return View(viewModel);
     }
 
@@ -47,14 +54,15 @@ public class ManualsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Yukle(ManualUploadViewModel model, CancellationToken cancellationToken)
     {
-        if (!KullaniciKilavuzYetkisineSahip())
+        var user = await _userContextService.GetCurrentUserAsync(cancellationToken);
+        if (!KullaniciKilavuzYetkisineSahip(user))
         {
             return Forbid();
         }
 
         if (!ModelState.IsValid)
         {
-            var refreshed = await _manualService.GetManualUploadModelAsync(model.SoftwareId, cancellationToken);
+            var refreshed = await _manualService.GetManualUploadModelAsync(user.Id, model.SoftwareId, cancellationToken);
             refreshed.Title = model.Title;
             refreshed.FilePath = model.FilePath;
             refreshed.ManualType = model.ManualType;
@@ -63,16 +71,11 @@ public class ManualsController : Controller
             return View(refreshed);
         }
 
-        var user = await _userContextService.GetCurrentUserAsync(cancellationToken);
-        if (user is null)
-        {
-            return Forbid();
-        }
-
         var isDeveloper = user.Role == UserRole.Yazilimci;
         var isUnitUser = user.Role == UserRole.BirimKullanicisi;
+        var isUnitManager = user.Role == UserRole.BirimYetkilisi;
 
-        if (model.ManualType == ManualType.KullanimKilavuzu && !isUnitUser)
+        if (model.ManualType == ManualType.KullanimKilavuzu && !(isUnitUser || isUnitManager))
         {
             TempData["Warning"] = "Kullanım kılavuzu yalnızca talep sahibi birim tarafından yüklenebilir.";
             return RedirectToAction(nameof(Index));
@@ -84,14 +87,28 @@ public class ManualsController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        await _manualService.SaveManualAsync(model, user.Id, cancellationToken);
-        TempData["Success"] = "Kılavuz başarıyla kaydedildi";
+        try
+        {
+            await _manualService.SaveManualAsync(model, user.Id, cancellationToken);
+            TempData["Success"] = "Kılavuz başarıyla kaydedildi";
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["Warning"] = ex.Message;
+        }
+
         return RedirectToAction(nameof(Index));
     }
 
-    private bool KullaniciKilavuzYetkisineSahip()
+    private static bool KullaniciKilavuzYetkisineSahip(UserProfile? user)
     {
-        return User.IsInRole(RoleConstants.Roles.BirimKullanicisi) ||
-               User.IsInRole(RoleConstants.Roles.Yazilimci);
+        if (user is null)
+        {
+            return false;
+        }
+
+        return user.Role == UserRole.BirimKullanicisi ||
+               user.Role == UserRole.BirimYetkilisi ||
+               user.Role == UserRole.Yazilimci;
     }
 }

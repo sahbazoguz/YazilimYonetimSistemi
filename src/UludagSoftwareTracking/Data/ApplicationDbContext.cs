@@ -38,6 +38,8 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<WorkflowStep> WorkflowSteps => Set<WorkflowStep>();
 
+    public DbSet<SoftwareResponsibility> SoftwareResponsibilities => Set<SoftwareResponsibility>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -144,6 +146,10 @@ public class ApplicationDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(p => p.LeadUserId)
                 .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(p => p.ReleasedSoftware)
+                .WithMany()
+                .HasForeignKey(p => p.ReleasedSoftwareId)
+                .OnDelete(DeleteBehavior.SetNull);
             entity.HasMany(p => p.WorkflowDefinitions)
                 .WithOne(w => w.Project)
                 .HasForeignKey(w => w.ProjectId)
@@ -174,6 +180,20 @@ public class ApplicationDbContext : DbContext
                 .HasForeignKey(s => s.WorkflowDefinitionId)
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(s => new { s.WorkflowDefinitionId, s.DisplayOrder });
+        });
+
+        modelBuilder.Entity<SoftwareResponsibility>(entity =>
+        {
+            entity.Property(r => r.ResponsibilityType).HasConversion<int>();
+            entity.HasOne(r => r.Software)
+                .WithMany(s => s.Responsibilities)
+                .HasForeignKey(r => r.SoftwareId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(r => r.User)
+                .WithMany()
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(r => new { r.SoftwareId, r.UserId, r.ResponsibilityType }).IsUnique();
         });
 
         modelBuilder.Entity<ProjectAssignment>(entity =>

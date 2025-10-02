@@ -40,6 +40,7 @@
                     {
                         <li><a asp-controller="Requests" asp-action="BaskanOnayBekleyen">Başkan Onayları</a></li>
                         <li><a asp-controller="Departments" asp-action="Yonet">Birim Yönetimi</a></li>
+                        <li><a asp-controller="SoftwareManagement" asp-action="Yonet">Yazılım Yönetimi</a></li>
                     }
                     if (User.IsInRole(RoleConstants.Roles.Yazilimci) || User.IsInRole(RoleConstants.Roles.Admin))
                     {

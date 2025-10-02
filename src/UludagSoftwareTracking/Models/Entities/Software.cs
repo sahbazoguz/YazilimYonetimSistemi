@@ -38,4 +38,6 @@ public class Software
     public ICollection<SoftwareManual> Manuals { get; set; } = new List<SoftwareManual>();
 
     public ICollection<SoftwareRequest> Requests { get; set; } = new List<SoftwareRequest>();
+
+    public ICollection<SoftwareResponsibility> Responsibilities { get; set; } = new List<SoftwareResponsibility>();
 }

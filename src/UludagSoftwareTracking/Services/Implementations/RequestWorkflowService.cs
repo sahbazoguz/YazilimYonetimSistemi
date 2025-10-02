@@ -665,7 +665,12 @@ public class RequestWorkflowService : IRequestWorkflowService
     public async Task ConfirmTestingAsync(int requestId, int userId, CancellationToken cancellationToken = default)
     {
         var request = await _context.SoftwareRequests
+            .Include(r => r.Department)
+            .Include(r => r.RequestedByUser)
             .Include(r => r.Project)
+                .ThenInclude(p => p!.Assignments)
+            .Include(r => r.Project)
+                .ThenInclude(p => p!.ReleasedSoftware)
             .FirstOrDefaultAsync(r => r.Id == requestId, cancellationToken)
             ?? throw new InvalidOperationException("Talep bulunamadı");
 
@@ -692,6 +697,7 @@ public class RequestWorkflowService : IRequestWorkflowService
         {
             request.Project.Status = ProjectStatus.Tamamlandi;
             request.Project.TestConfirmedOn = DateTime.UtcNow;
+            await EnsureReleasedSoftwareAsync(request, cancellationToken);
         }
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -1479,5 +1485,107 @@ public class RequestWorkflowService : IRequestWorkflowService
         await _context.SaveChangesAsync(cancellationToken);
 
         request.Project = project;
+    }
+
+    private async Task EnsureReleasedSoftwareAsync(SoftwareRequest request, CancellationToken cancellationToken)
+    {
+        if (request.Project is null)
+        {
+            return;
+        }
+
+        if (request.Project.ReleasedSoftwareId.HasValue)
+        {
+            request.ExistingSoftwareId ??= request.Project.ReleasedSoftwareId;
+            return;
+        }
+
+        var software = new Software
+        {
+            Name = string.IsNullOrWhiteSpace(request.Project.Name) ? request.Title : request.Project.Name,
+            Description = string.IsNullOrWhiteSpace(request.Project.Description) ? request.Description : request.Project.Description,
+            DepartmentId = request.DepartmentId,
+            Category = request.Department?.Name,
+            SupportContact = request.Department?.ContactEmail
+        };
+
+        _context.Softwares.Add(software);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        request.Project.ReleasedSoftwareId = software.Id;
+        request.Project.ReleasedSoftware = software;
+        request.ExistingSoftwareId = software.Id;
+
+        var assignments = request.Project.Assignments;
+        if (assignments.Count == 0)
+        {
+            await _context.Entry(request.Project).Collection(p => p.Assignments).LoadAsync(cancellationToken);
+            assignments = request.Project.Assignments;
+        }
+
+        var uniqueAssignments = assignments
+            .Select(a => a.UserId)
+            .Distinct()
+            .ToList();
+
+        var addedPairs = new HashSet<(int UserId, SoftwareResponsibilityType Responsibility)>();
+        var responsibilities = new List<SoftwareResponsibility>();
+
+        void AddResponsibility(int userId, SoftwareResponsibilityType type)
+        {
+            if (userId <= 0)
+            {
+                return;
+            }
+
+            if (addedPairs.Add((userId, type)))
+            {
+                responsibilities.Add(new SoftwareResponsibility
+                {
+                    SoftwareId = software.Id,
+                    UserId = userId,
+                    ResponsibilityType = type
+                });
+            }
+        }
+
+        foreach (var developerId in uniqueAssignments)
+        {
+            AddResponsibility(developerId, SoftwareResponsibilityType.Yazilimci);
+        }
+
+        if (request.RequestedByUser is not null)
+        {
+            if (request.RequestedByUser.Role == UserRole.BirimKullanicisi)
+            {
+                AddResponsibility(request.RequestedByUser.Id, SoftwareResponsibilityType.BirimKullanicisi);
+            }
+            else if (request.RequestedByUser.Role == UserRole.BirimYetkilisi)
+            {
+                AddResponsibility(request.RequestedByUser.Id, SoftwareResponsibilityType.BirimYetkilisi);
+            }
+        }
+
+        if (request.DepartmentId > 0)
+        {
+            var departmentManagers = await _context.UserProfiles
+                .Where(u => u.IsActive
+                            && u.DepartmentId == request.DepartmentId
+                            && u.Role == UserRole.BirimYetkilisi)
+                .Select(u => u.Id)
+                .ToListAsync(cancellationToken);
+
+            foreach (var managerId in departmentManagers)
+            {
+                AddResponsibility(managerId, SoftwareResponsibilityType.BirimYetkilisi);
+            }
+        }
+
+        if (responsibilities.Count > 0)
+        {
+            await _context.SoftwareResponsibilities.AddRangeAsync(responsibilities, cancellationToken);
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
     }
 }

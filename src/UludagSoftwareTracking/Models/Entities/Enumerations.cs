@@ -82,3 +82,10 @@ public enum WorkflowStepType
     Normal = 0,
     KararNoktasi = 1
 }
+
+public enum SoftwareResponsibilityType
+{
+    BirimKullanicisi = 0,
+    BirimYetkilisi = 1,
+    Yazilimci = 2
+}

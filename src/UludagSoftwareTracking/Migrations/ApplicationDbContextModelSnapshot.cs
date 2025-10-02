@@ -152,6 +152,9 @@ namespace UludagSoftwareTracking.Migrations
                 b.Property<int?>("LeadUserId")
                     .HasColumnType("int");
 
+                b.Property<int?>("ReleasedSoftwareId")
+                    .HasColumnType("int");
+
                 b.Property<string>("Name")
                     .IsRequired()
                     .HasMaxLength(200)
@@ -180,6 +183,8 @@ namespace UludagSoftwareTracking.Migrations
                 b.HasKey("Id");
 
                 b.HasIndex("LeadUserId");
+
+                b.HasIndex("ReleasedSoftwareId");
 
                 b.HasIndex("RequestId")
                     .IsUnique();
@@ -502,6 +507,35 @@ namespace UludagSoftwareTracking.Migrations
                 b.ToTable("SoftwareManuals");
             });
 
+            modelBuilder.Entity("UludagSoftwareTracking.Models.Entities.SoftwareResponsibility", b =>
+            {
+                b.Property<int>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("int");
+
+                SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                b.Property<int>("ResponsibilityType")
+                    .HasColumnType("int");
+
+                b.Property<int>("SoftwareId")
+                    .HasColumnType("int");
+
+                b.Property<int>("UserId")
+                    .HasColumnType("int");
+
+                b.HasKey("Id");
+
+                b.HasIndex("SoftwareId");
+
+                b.HasIndex("UserId");
+
+                b.HasIndex("SoftwareId", "UserId", "ResponsibilityType")
+                    .IsUnique();
+
+                b.ToTable("SoftwareResponsibilities");
+            });
+
             modelBuilder.Entity("UludagSoftwareTracking.Models.Entities.SoftwareRequest", b =>
             {
                 b.Property<int>("Id")
@@ -649,7 +683,14 @@ namespace UludagSoftwareTracking.Migrations
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
 
+                b.HasOne("UludagSoftwareTracking.Models.Entities.Software", "ReleasedSoftware")
+                    .WithMany()
+                    .HasForeignKey("ReleasedSoftwareId")
+                    .OnDelete(DeleteBehavior.SetNull);
+
                 b.Navigation("LeadUser");
+
+                b.Navigation("ReleasedSoftware");
 
                 b.Navigation("Request");
 
@@ -697,6 +738,25 @@ namespace UludagSoftwareTracking.Migrations
                     .IsRequired();
 
                 b.Navigation("WorkflowDefinition");
+            });
+
+            modelBuilder.Entity("UludagSoftwareTracking.Models.Entities.SoftwareResponsibility", b =>
+            {
+                b.HasOne("UludagSoftwareTracking.Models.Entities.Software", "Software")
+                    .WithMany("Responsibilities")
+                    .HasForeignKey("SoftwareId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.HasOne("UludagSoftwareTracking.Models.Entities.UserProfile", "User")
+                    .WithMany()
+                    .HasForeignKey("UserId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.Navigation("Software");
+
+                b.Navigation("User");
             });
 
             modelBuilder.Entity("UludagSoftwareTracking.Models.Entities.RequestApproval", b =>
@@ -830,6 +890,10 @@ namespace UludagSoftwareTracking.Migrations
             modelBuilder.Entity("UludagSoftwareTracking.Models.Entities.Software", b =>
             {
                 b.Navigation("Manuals");
+
+                b.Navigation("Responsibilities");
+
+                b.Navigation("Requests");
             });
 
             modelBuilder.Entity("UludagSoftwareTracking.Models.Entities.SoftwareRequest", b =>

@@ -24,9 +24,17 @@ public class ManualService : IManualService
         _notificationService = notificationService;
     }
 
-    public async Task<IReadOnlyList<SoftwareManual>> GetManualsAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<SoftwareManual>> GetManualsAsync(int userId, CancellationToken cancellationToken = default)
     {
+        var yetkiliYazilimIdleri = await GetAuthorizedSoftwareIdsAsync(userId, cancellationToken);
+
+        if (yetkiliYazilimIdleri.Length == 0)
+        {
+            return Array.Empty<SoftwareManual>();
+        }
+
         return await _context.SoftwareManuals
+            .Where(m => yetkiliYazilimIdleri.Contains(m.SoftwareId))
             .Include(m => m.Software)
             .Include(m => m.UploadedByUser)
             .OrderByDescending(m => m.UploadedOn)
@@ -34,9 +42,12 @@ public class ManualService : IManualService
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<ManualUploadViewModel> GetManualUploadModelAsync(int? softwareId, CancellationToken cancellationToken = default)
+    public async Task<ManualUploadViewModel> GetManualUploadModelAsync(int userId, int? softwareId, CancellationToken cancellationToken = default)
     {
+        var yetkiliYazilimIdleri = await GetAuthorizedSoftwareIdsAsync(userId, cancellationToken);
+
         var softwares = await _context.Softwares
+            .Where(s => yetkiliYazilimIdleri.Contains(s.Id))
             .OrderBy(s => s.Name)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
@@ -54,6 +65,20 @@ public class ManualService : IManualService
             .Include(s => s.Department)
             .FirstOrDefaultAsync(s => s.Id == model.SoftwareId, cancellationToken)
             ?? throw new InvalidOperationException("Yazılım bulunamadı");
+
+        var izinVerilenRoller = model.ManualType == ManualType.TeknikKilavuz
+            ? new[] { SoftwareResponsibilityType.Yazilimci }
+            : new[] { SoftwareResponsibilityType.BirimKullanicisi, SoftwareResponsibilityType.BirimYetkilisi };
+
+        var yetkiliMi = await _context.SoftwareResponsibilities
+            .AnyAsync(r => r.SoftwareId == software.Id
+                           && r.UserId == userId
+                           && izinVerilenRoller.Contains(r.ResponsibilityType), cancellationToken);
+
+        if (!yetkiliMi)
+        {
+            throw new InvalidOperationException("Bu yazılım için yetkiniz bulunmuyor.");
+        }
 
         var manual = new SoftwareManual
         {
@@ -73,12 +98,14 @@ public class ManualService : IManualService
         await _auditLogService.RecordAsync(userId, "Kılavuz Yükleme", nameof(SoftwareManual), manual.Id,
             $"{software.Name} - {manual.ManualType}", cancellationToken);
 
+        var sorumluIdler = await _context.SoftwareResponsibilities
+            .Where(r => r.SoftwareId == software.Id)
+            .Select(r => r.UserId)
+            .Distinct()
+            .ToArrayAsync(cancellationToken);
+
         var recipients = await _context.UserProfiles
-            .Where(u => u.IsActive && u.Id != userId)
-            .Where(u =>
-                (software.DepartmentId != null && u.DepartmentId == software.DepartmentId &&
-                 (u.Role == UserRole.BirimYetkilisi || u.Role == UserRole.BirimKullanicisi)) ||
-                u.Role == UserRole.Yazilimci)
+            .Where(u => u.IsActive && sorumluIdler.Contains(u.Id) && u.Id != userId)
             .ToListAsync(cancellationToken);
 
         await _notificationService.SendAsync(recipients,
@@ -88,5 +115,14 @@ public class ManualService : IManualService
             cancellationToken);
 
         return manual.Id;
+    }
+
+    private async Task<int[]> GetAuthorizedSoftwareIdsAsync(int userId, CancellationToken cancellationToken)
+    {
+        return await _context.SoftwareResponsibilities
+            .Where(r => r.UserId == userId)
+            .Select(r => r.SoftwareId)
+            .Distinct()
+            .ToArrayAsync(cancellationToken);
     }
 }

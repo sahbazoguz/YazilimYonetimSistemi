@@ -29,6 +29,10 @@ public class Project
 
     public UserProfile? LeadUser { get; set; }
 
+    public int? ReleasedSoftwareId { get; set; }
+
+    public Software? ReleasedSoftware { get; set; }
+
     [StringLength(200)]
     public string? TechnicalGuidePath { get; set; }
 

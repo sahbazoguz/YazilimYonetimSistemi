@@ -822,3 +822,110 @@ body {
 
 .bildirim-sayac:empty { display: none; }
 
+
+.yonetim-baslik {
+    margin-bottom: 1.5rem;
+}
+
+.yonetim-baslik h1 {
+    margin-bottom: 0.35rem;
+}
+
+.yonetim-formu,
+.yonetim-listesi {
+    margin-bottom: 2rem;
+}
+
+.kart-form,
+.ic-form {
+    background-color: #fff;
+    border: 1px solid #dfe3ed;
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.yonetim-karti {
+    background-color: #fff;
+    border: 1px solid #dfe3ed;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    overflow: hidden;
+}
+
+.yonetim-karti header {
+    background: linear-gradient(90deg, #3056d3, #536dfe);
+    color: #fff;
+    padding: 1.25rem 1.75rem;
+}
+
+.yonetim-karti header h3 {
+    margin: 0;
+    font-size: 1.3rem;
+}
+
+.yonetim-karti header .detay {
+    margin: 0.35rem 0 0;
+    font-size: 0.95rem;
+    opacity: 0.85;
+}
+
+.yonetim-karti .kart-icerik {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    padding: 1.75rem;
+}
+
+.yonetim-karti .ozet-bilgiler {
+    flex: 1 1 300px;
+}
+
+.yonetim-karti .kart-formlar {
+    flex: 1 1 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.yonetim-karti .kart-formlar form {
+    margin: 0;
+}
+
+.sorumlu-listeleri {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.sorumlu-listeleri ul {
+    margin: 0;
+    padding-left: 1.1rem;
+    min-width: 180px;
+}
+
+.ic-form select[multiple] {
+    min-height: 9rem;
+    padding: 0.75rem;
+}
+
+.ic-form select[multiple] option {
+    padding: 0.35rem 0.4rem;
+}
+
+.hizalama-son {
+    text-align: right;
+}
+
+.silme-formu {
+    text-align: right;
+}
+
+.text-muted {
+    color: #7c8197;
+}
+
