@@ -53,4 +53,19 @@ public interface IRequestWorkflowService
         DateTime? bitis,
         AssessmentResult? karar,
         CancellationToken cancellationToken = default);
+
+    Task<BaskanApprovalHistoryViewModel> GetBaskanApprovalHistoryAsync(
+        int baskanUserId,
+        DateTime? baslangic,
+        DateTime? bitis,
+        AssessmentResult? karar,
+        CancellationToken cancellationToken = default);
+
+    Task<AssessmentHistoryAdminViewModel> GetAssessmentOverviewAsync(
+        DateTime? baslangic,
+        DateTime? bitis,
+        AssessmentResult? karar,
+        AssessmentStage? asama,
+        int? degerlendiriciId,
+        CancellationToken cancellationToken = default);
 }

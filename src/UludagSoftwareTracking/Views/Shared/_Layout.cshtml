@@ -35,10 +35,12 @@
                         User.IsInRole(RoleConstants.Roles.Admin))
                     {
                         <li><a asp-controller="Requests" asp-action="DegerlendirmeBekleyen">Değerlendirme Listesi</a></li>
+                        <li><a asp-controller="Requests" asp-action="DegerlendirmeGecmisi">Değerlendirme Geçmişim</a></li>
                     }
                     if (User.IsInRole(RoleConstants.Roles.DegerlendirmeBaskani) || User.IsInRole(RoleConstants.Roles.Admin))
                     {
                         <li><a asp-controller="Requests" asp-action="BaskanOnayBekleyen">Başkan Onayları</a></li>
+                        <li><a asp-controller="Requests" asp-action="BaskanGecmisi">Başkan Geçmişi</a></li>
                         <li><a asp-controller="Departments" asp-action="Yonet">Birim Yönetimi</a></li>
                         <li><a asp-controller="SoftwareManagement" asp-action="Yonet">Yazılım Yönetimi</a></li>
                     }
@@ -54,6 +56,7 @@
                     if (User.IsInRole(RoleConstants.Roles.Admin))
                     {
                         <li><a asp-controller="Admin" asp-action="Index">Sistem Yönetimi</a></li>
+                        <li><a asp-controller="Admin" asp-action="Degerlendirmeler">Değerlendirme Kayıtları</a></li>
                         <li><a asp-controller="Admin" asp-action="Loglar">İşlem Günlüğü</a></li>
                     }
                 }

@@ -9,6 +9,10 @@
     {
         <a class="buton-link" asp-action="Olustur">Yeni Talep Oluştur</a>
     }
+    else if (Model.Baslik == "Değerlendirme Listesi")
+    {
+        <p class="yardim-metin">Geçmiş değerlendirmelerinizi görmek için <a asp-action="DegerlendirmeGecmisi">Değerlendirme Geçmişim</a> sayfasını ziyaret edebilirsiniz.</p>
+    }
 </section>
 
 @if (Model.Talepler.Any())

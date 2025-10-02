@@ -1,0 +1,128 @@
+@model AssessmentHistoryAdminViewModel
+@using UludagSoftwareTracking.Models.Entities
+@using Microsoft.AspNetCore.Mvc.Rendering
+@{
+    ViewData["Title"] = "Değerlendirme Kayıtları";
+    var asamaSecenekleri = Enum.GetValues(typeof(AssessmentStage))
+        .Cast<AssessmentStage>()
+        .Select(a => new SelectListItem
+        {
+            Value = a.ToString(),
+            Text = AsamaEtiketi(a)
+        })
+        .ToList();
+    var degerlendiriciSecenekleri = Model.Degerlendiriciler
+        .Select(u => new SelectListItem
+        {
+            Value = u.Id.ToString(),
+            Text = string.IsNullOrWhiteSpace(u.Birim) ? u.AdSoyad : $"{u.AdSoyad} ({u.Birim})"
+        })
+        .ToList();
+
+    string AsamaEtiketi(AssessmentStage stage) => stage switch
+    {
+        AssessmentStage.DegerlendiriciBir => "Değerlendirici 1",
+        AssessmentStage.DegerlendiriciIki => "Değerlendirici 2",
+        AssessmentStage.DegerlendiriciUc => "Değerlendirici 3",
+        AssessmentStage.BaskanOnayi => "Başkan Onayı",
+        _ => stage.ToString()
+    };
+
+    string KararEtiketi(AssessmentResult sonuc) => sonuc switch
+    {
+        AssessmentResult.Uygun => "Uygun",
+        AssessmentResult.UygunDegil => "Uygun Değil",
+        AssessmentResult.VarOlanYazilimaYonlendirildi => "Var Olan Yazılıma Yönlendirildi",
+        AssessmentResult.YeniGelistirme => "Yeni Geliştirme",
+        _ => sonuc.ToString()
+    };
+
+    var kararSecenekleri = Enum.GetValues(typeof(AssessmentResult))
+        .Cast<AssessmentResult>()
+        .Where(k => k != AssessmentResult.Beklemede)
+        .Select(k => new SelectListItem
+        {
+            Value = k.ToString(),
+            Text = KararEtiketi(k)
+        })
+        .ToList();
+}
+
+<section class="form-alani">
+    <h1>Değerlendirme Kayıtları</h1>
+    <p class="yardim-metin">Tüm değerlendirme sonuçlarını filtreleyebilir, hangi kullanıcının hangi kararı verdiğini inceleyebilirsiniz.</p>
+
+    <form method="get" class="filtre-formu">
+        <div class="filtre-satiri coklu">
+            <div class="form-grup">
+                <label asp-for="Baslangic"></label>
+                <input asp-for="Baslangic" class="form-control" />
+            </div>
+            <div class="form-grup">
+                <label asp-for="Bitis"></label>
+                <input asp-for="Bitis" class="form-control" />
+            </div>
+            <div class="form-grup">
+                <label asp-for="Karar"></label>
+                <select asp-for="Karar" asp-items="kararSecenekleri" class="form-control">
+                    <option value="">Tüm kararlar</option>
+                </select>
+            </div>
+            <div class="form-grup">
+                <label asp-for="Asama"></label>
+                <select asp-for="Asama" asp-items="asamaSecenekleri" class="form-control">
+                    <option value="">Tüm aşamalar</option>
+                </select>
+            </div>
+            <div class="form-grup">
+                <label asp-for="DegerlendiriciId">Değerlendirici</label>
+                <select asp-for="DegerlendiriciId" asp-items="degerlendiriciSecenekleri" class="form-control">
+                    <option value="">Tümü</option>
+                </select>
+            </div>
+            <div class="form-grup filtre-butonu">
+                <button type="submit">Filtrele</button>
+            </div>
+        </div>
+    </form>
+</section>
+
+<section>
+    <h2>Değerlendirme Listesi</h2>
+    @if (!Model.Kayitlar.Any())
+    {
+        <p class="yardim-metin">Seçilen kriterlere uygun değerlendirme kaydı bulunamadı.</p>
+    }
+    else
+    {
+        <table class="tablo">
+            <thead>
+                <tr>
+                    <th>Tarih</th>
+                    <th>Aşama</th>
+                    <th>Talep No</th>
+                    <th>Talep Başlığı</th>
+                    <th>Birim</th>
+                    <th>Karar</th>
+                    <th>Değerlendiren</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var kayit in Model.Kayitlar)
+            {
+                <tr>
+                    <td>@(kayit.Tarih?.ToLocalTime().ToString("dd.MM.yyyy") ?? "-")</td>
+                    <td>@AsamaEtiketi(kayit.Asama)</td>
+                    <td>@kayit.RequestId</td>
+                    <td>@kayit.TalepBasligi</td>
+                    <td>@kayit.BirimAdi</td>
+                    <td>@KararEtiketi(kayit.Sonuc)</td>
+                    <td>@kayit.Degerlendiren</td>
+                    <td><a class="buton-link" asp-controller="Requests" asp-action="Detay" asp-route-id="@kayit.RequestId">Detay</a></td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+</section>

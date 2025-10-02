@@ -945,6 +945,192 @@ public class RequestWorkflowService : IRequestWorkflowService
         };
     }
 
+    public async Task<BaskanApprovalHistoryViewModel> GetBaskanApprovalHistoryAsync(
+        int baskanUserId,
+        DateTime? baslangic,
+        DateTime? bitis,
+        AssessmentResult? karar,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _context.RequestAssessments
+            .Include(a => a.Request)
+                .ThenInclude(r => r.Department)
+            .Include(a => a.Request)
+                .ThenInclude(r => r.Project)
+                    .ThenInclude(p => p!.Assignments)
+                        .ThenInclude(pa => pa.User)
+            .Include(a => a.Request)
+                .ThenInclude(r => r.Project)
+                    .ThenInclude(p => p!.LeadUser)
+            .Where(a => a.Stage == AssessmentStage.BaskanOnayi
+                        && a.AssessedByUserId == baskanUserId
+                        && a.AssessedOn != null
+                        && a.Result != AssessmentResult.Beklemede);
+
+        if (baslangic.HasValue)
+        {
+            var start = baslangic.Value.Date;
+            query = query.Where(a => a.AssessedOn >= start);
+        }
+
+        if (bitis.HasValue)
+        {
+            var end = bitis.Value.Date.AddDays(1);
+            query = query.Where(a => a.AssessedOn < end);
+        }
+
+        if (karar.HasValue)
+        {
+            query = query.Where(a => a.Result == karar.Value);
+        }
+
+        var assessments = await query
+            .OrderByDescending(a => a.AssessedOn)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        var items = assessments
+            .Select(a =>
+            {
+                var request = a.Request;
+                var project = request?.Project;
+                var leadName = project?.LeadUser?.FullName
+                    ?? project?.LeadUser?.UserName
+                    ?? (project?.LeadUserId.HasValue == true ? $"Kullanıcı #{project.LeadUserId}" : "-");
+
+                var developerNames = project?.Assignments
+                    .Where(pa => pa.AssignedRole == RoleConstants.Roles.Yazilimci
+                                 || pa.AssignedRole == RoleConstants.Roles.EkipLideri)
+                    .Select(pa => pa.User?.FullName ?? pa.User?.UserName ?? $"Kullanıcı #{pa.UserId}")
+                    .Distinct()
+                    .ToArray() ?? Array.Empty<string>();
+
+                var testerNames = project?.Assignments
+                    .Where(pa => pa.AssignedRole == RoleConstants.Roles.TestYazilimcisi)
+                    .Select(pa => pa.User?.FullName ?? pa.User?.UserName ?? $"Kullanıcı #{pa.UserId}")
+                    .Distinct()
+                    .ToArray() ?? Array.Empty<string>();
+
+                return new BaskanApprovalHistoryItemViewModel
+                {
+                    AssessmentId = a.Id,
+                    RequestId = a.RequestId,
+                    TalepBasligi = request?.Title ?? $"Talep #{a.RequestId}",
+                    BirimAdi = request?.Department?.Name ?? "-",
+                    Durum = GetStatusName(request?.Status ?? RequestStatus.OnayBekleniyor),
+                    Karar = a.Result,
+                    KararTarihi = a.AssessedOn,
+                    ProjeDurumu = project is null ? "Proje Oluşturulmadı" : GetProjectStatusName(project.Status),
+                    Lider = string.IsNullOrWhiteSpace(leadName) ? "-" : leadName,
+                    Gelistiriciler = developerNames.Length == 0 ? "-" : string.Join(", ", developerNames),
+                    TestEkibi = testerNames.Length == 0 ? "-" : string.Join(", ", testerNames),
+                    ProjeVar = project is not null
+                };
+            })
+            .ToArray();
+
+        return new BaskanApprovalHistoryViewModel
+        {
+            Baslangic = baslangic,
+            Bitis = bitis,
+            Karar = karar,
+            Kayitlar = items
+        };
+    }
+
+    public async Task<AssessmentHistoryAdminViewModel> GetAssessmentOverviewAsync(
+        DateTime? baslangic,
+        DateTime? bitis,
+        AssessmentResult? karar,
+        AssessmentStage? asama,
+        int? degerlendiriciId,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _context.RequestAssessments
+            .Include(a => a.Request)
+                .ThenInclude(r => r.Department)
+            .Include(a => a.AssessedByUser)
+            .Where(a => a.AssessedOn != null && a.Result != AssessmentResult.Beklemede);
+
+        if (baslangic.HasValue)
+        {
+            var start = baslangic.Value.Date;
+            query = query.Where(a => a.AssessedOn >= start);
+        }
+
+        if (bitis.HasValue)
+        {
+            var end = bitis.Value.Date.AddDays(1);
+            query = query.Where(a => a.AssessedOn < end);
+        }
+
+        if (karar.HasValue)
+        {
+            query = query.Where(a => a.Result == karar.Value);
+        }
+
+        if (asama.HasValue)
+        {
+            query = query.Where(a => a.Stage == asama.Value);
+        }
+
+        if (degerlendiriciId.HasValue)
+        {
+            query = query.Where(a => a.AssessedByUserId == degerlendiriciId.Value);
+        }
+
+        var assessments = await query
+            .OrderByDescending(a => a.AssessedOn)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        var items = assessments
+            .Select(a => new AssessmentHistoryAdminItemViewModel
+            {
+                AssessmentId = a.Id,
+                RequestId = a.RequestId,
+                TalepBasligi = a.Request?.Title ?? $"Talep #{a.RequestId}",
+                BirimAdi = a.Request?.Department?.Name ?? "-",
+                Asama = a.Stage,
+                Sonuc = a.Result,
+                Tarih = a.AssessedOn,
+                Degerlendiren = a.AssessedByUser?.FullName
+                    ?? a.AssessedByUser?.UserName
+                    ?? (a.AssessedByUserId.HasValue ? $"Kullanıcı #{a.AssessedByUserId}" : "-")
+            })
+            .ToArray();
+
+        var evaluatorRoles = new[]
+        {
+            UserRole.DegerlendiriciBir,
+            UserRole.DegerlendiriciIki,
+            UserRole.DegerlendiriciUc,
+            UserRole.DegerlendirmeBaskani
+        };
+
+        var evaluators = await _context.UserProfiles
+            .Where(u => u.IsActive && evaluatorRoles.Contains(u.Role))
+            .OrderBy(u => u.FullName ?? u.UserName ?? u.Id.ToString())
+            .Select(u => new SelectableUserViewModel
+            {
+                Id = u.Id,
+                AdSoyad = u.FullName ?? u.UserName ?? $"Kullanıcı #{u.Id}",
+                Birim = u.Department != null ? u.Department.Name : "-"
+            })
+            .ToListAsync(cancellationToken);
+
+        return new AssessmentHistoryAdminViewModel
+        {
+            Baslangic = baslangic,
+            Bitis = bitis,
+            Karar = karar,
+            Asama = asama,
+            DegerlendiriciId = degerlendiriciId,
+            Degerlendiriciler = evaluators,
+            Kayitlar = items
+        };
+    }
+
     private static IReadOnlyCollection<WorkflowDefinitionViewModel> BuildWorkflowViewModels(Project? project)
     {
         if (project?.WorkflowDefinitions is null || project.WorkflowDefinitions.Count == 0)
@@ -1462,6 +1648,18 @@ public class RequestWorkflowService : IRequestWorkflowService
         RequestStatus.Tamamlandi => "Tamamlandı",
         RequestStatus.Kapandi => "Kapandı",
         _ => "Taslak"
+    };
+
+    private static string GetProjectStatusName(ProjectStatus status) => status switch
+    {
+        ProjectStatus.Planlama => "Planlama",
+        ProjectStatus.Analiz => "Analiz",
+        ProjectStatus.Gelistirme => "Geliştirme",
+        ProjectStatus.Test => "Test",
+        ProjectStatus.YayinaHazir => "Yayına Hazır",
+        ProjectStatus.Tamamlandi => "Tamamlandı",
+        ProjectStatus.Askida => "Askıda",
+        _ => status.ToString()
     };
 
     private async Task EnsureProjectAsync(SoftwareRequest request, CancellationToken cancellationToken)

@@ -99,6 +99,19 @@ public class RequestsController : Controller
         return View("Liste", viewModel);
     }
 
+    [Authorize(Policy = RoleConstants.Policies.RequireBaskan)]
+    public async Task<IActionResult> BaskanGecmisi(DateTime? baslangic, DateTime? bitis, AssessmentResult? karar, CancellationToken cancellationToken)
+    {
+        var user = await _userContextService.GetCurrentUserAsync(cancellationToken);
+        if (user is null)
+        {
+            return Forbid();
+        }
+
+        var viewModel = await _requestWorkflowService.GetBaskanApprovalHistoryAsync(user.Id, baslangic, bitis, karar, cancellationToken);
+        return View(viewModel);
+    }
+
     [Authorize(Policy = RoleConstants.Policies.RequireBirimKullanicisi)]
     public async Task<IActionResult> Olustur(CancellationToken cancellationToken)
     {

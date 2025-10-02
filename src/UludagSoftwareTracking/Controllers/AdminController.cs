@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using UludagSoftwareTracking.Models.Entities;
 using UludagSoftwareTracking.Models.ViewModels;
 using UludagSoftwareTracking.Services.Interfaces;
 using UludagSoftwareTracking.Services.Security;
@@ -15,12 +16,18 @@ public class AdminController : Controller
     private readonly IUserProfileService _userProfileService;
     private readonly IDepartmentService _departmentService;
     private readonly IAuditLogService _auditLogService;
+    private readonly IRequestWorkflowService _requestWorkflowService;
 
-    public AdminController(IUserProfileService userProfileService, IDepartmentService departmentService, IAuditLogService auditLogService)
+    public AdminController(
+        IUserProfileService userProfileService,
+        IDepartmentService departmentService,
+        IAuditLogService auditLogService,
+        IRequestWorkflowService requestWorkflowService)
     {
         _userProfileService = userProfileService;
         _departmentService = departmentService;
         _auditLogService = auditLogService;
+        _requestWorkflowService = requestWorkflowService;
     }
 
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
@@ -74,5 +81,24 @@ public class AdminController : Controller
     {
         var loglar = await _auditLogService.GetLogsAsync(cancellationToken);
         return View(loglar);
+    }
+
+    public async Task<IActionResult> Degerlendirmeler(
+        DateTime? baslangic,
+        DateTime? bitis,
+        AssessmentResult? karar,
+        AssessmentStage? asama,
+        int? degerlendiriciId,
+        CancellationToken cancellationToken)
+    {
+        var model = await _requestWorkflowService.GetAssessmentOverviewAsync(
+            baslangic,
+            bitis,
+            karar,
+            asama,
+            degerlendiriciId,
+            cancellationToken);
+
+        return View(model);
     }
 }
