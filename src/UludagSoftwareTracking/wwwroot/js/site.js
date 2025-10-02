@@ -108,6 +108,24 @@
         return normalized ? normalized.toUpperCase() : '';
     }
 
+    function getSequencePrefixForIndex(index) {
+        if (typeof index !== 'number' || Number.isNaN(index) || index < 0) {
+            index = 0;
+        }
+
+        let value = Math.floor(index) + 1;
+        let prefix = '';
+
+        while (value > 0) {
+            value -= 1;
+            const remainder = value % 26;
+            prefix = String.fromCharCode(65 + remainder) + prefix;
+            value = Math.floor(value / 26);
+        }
+
+        return prefix || 'A';
+    }
+
     function buildSerializable(state) {
         return state.workflows.map((workflow) => ({
             id: workflow.id,
@@ -125,12 +143,22 @@
         }));
     }
 
-    function nextSequenceCode(workflow) {
+    function nextSequenceCode(workflow, prefix) {
+        const normalizedPrefix = typeof prefix === 'string' && prefix.trim()
+            ? prefix.trim().toUpperCase()
+            : 'A';
+
         const existing = new Set();
         workflow.steps.forEach((step) => {
-            const match = /^A(\d+)$/i.exec(step.sequenceCode || '');
-            if (match) {
-                existing.add(Number(match[1]));
+            const code = (step.sequenceCode || '').toUpperCase();
+            if (!code.startsWith(normalizedPrefix)) {
+                return;
+            }
+
+            const suffix = code.substring(normalizedPrefix.length);
+            const number = Number.parseInt(suffix, 10);
+            if (!Number.isNaN(number)) {
+                existing.add(number);
             }
         });
 
@@ -139,7 +167,7 @@
             index += 1;
         }
 
-        return `A${index}`;
+        return `${normalizedPrefix}${index}`;
     }
 
     function createElement(tag, className, textContent) {
@@ -232,7 +260,9 @@
         }
 
         function addStep(workflow) {
-            const code = nextSequenceCode(workflow);
+            const workflowIndex = state.workflows.indexOf(workflow);
+            const prefix = getSequencePrefixForIndex(workflowIndex < 0 ? 0 : workflowIndex);
+            const code = nextSequenceCode(workflow, prefix);
             workflow.steps.push({
                 id: null,
                 sequenceCode: code,
@@ -269,6 +299,7 @@
 
             state.workflows.forEach((workflow, workflowIndex) => {
                 const card = createElement('article', 'is-akisi-kart');
+                const prefix = getSequencePrefixForIndex(workflowIndex);
 
                 const header = createElement('header', 'is-akisi-baslik');
                 card.appendChild(header);
@@ -315,7 +346,7 @@
                     const row = document.createElement('tr');
                     row.className = step.description.trim() ? '' : 'gecersiz';
 
-                    const codeCell = createElement('td', 'is-akisi-sira', step.sequenceCode || `A${stepIndex + 1}`);
+                    const codeCell = createElement('td', 'is-akisi-sira', step.sequenceCode || `${prefix}${stepIndex + 1}`);
                     row.appendChild(codeCell);
 
                     const descriptionCell = document.createElement('td');

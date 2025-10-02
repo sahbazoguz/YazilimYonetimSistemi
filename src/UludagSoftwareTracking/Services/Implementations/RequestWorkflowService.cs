@@ -976,6 +976,7 @@ public class RequestWorkflowService : IRequestWorkflowService
     {
         var definitions = model?.Workflows ?? new List<WorkflowEditorDefinition>();
         var result = new List<WorkflowEditorDefinition>();
+        var definitionIndex = 0;
 
         foreach (var definition in definitions)
         {
@@ -990,7 +991,8 @@ public class RequestWorkflowService : IRequestWorkflowService
                 throw new InvalidOperationException("İş akışı başlığı boş bırakılamaz.");
             }
 
-            var steps = NormalizeWorkflowSteps(definition.Steps ?? new List<WorkflowEditorStep>());
+            var prefix = GetSequencePrefix(definitionIndex);
+            var steps = NormalizeWorkflowSteps(definition.Steps ?? new List<WorkflowEditorStep>(), prefix);
             if (steps.Count == 0)
             {
                 throw new InvalidOperationException($"\"{title}\" iş akışı için en az bir adım eklenmelidir.");
@@ -1002,16 +1004,22 @@ public class RequestWorkflowService : IRequestWorkflowService
                 Title = TrimToLength(title, 150),
                 Steps = steps
             });
+
+            definitionIndex++;
         }
 
         return result;
     }
 
-    private static List<WorkflowEditorStep> NormalizeWorkflowSteps(IEnumerable<WorkflowEditorStep> steps)
+    private static List<WorkflowEditorStep> NormalizeWorkflowSteps(IEnumerable<WorkflowEditorStep> steps, string sequencePrefix)
     {
         var result = new List<WorkflowEditorStep>();
         var usedCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var nextIndex = 1;
+        var prefix = string.IsNullOrWhiteSpace(sequencePrefix)
+            ? "A"
+            : sequencePrefix.ToUpperInvariant();
+        var replacements = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var step in steps ?? Enumerable.Empty<WorkflowEditorStep>())
         {
@@ -1026,19 +1034,29 @@ public class RequestWorkflowService : IRequestWorkflowService
                 throw new InvalidOperationException("Adım açıklaması boş bırakılamaz.");
             }
 
-            var code = step.SequenceCode?.Trim();
-            if (string.IsNullOrWhiteSpace(code))
+            var rawCode = step.SequenceCode?.Trim();
+            var normalizedOriginalCode = string.IsNullOrWhiteSpace(rawCode)
+                ? null
+                : TrimToLength(rawCode.ToUpperInvariant(), 20);
+            var code = normalizedOriginalCode;
+
+            if (string.IsNullOrWhiteSpace(code) || !code.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             {
-                code = GenerateSequenceCode(usedCodes, ref nextIndex);
+                code = GenerateSequenceCode(usedCodes, ref nextIndex, prefix);
             }
-            else
+            else if (!usedCodes.Add(code))
             {
-                code = code.ToUpperInvariant();
-                if (!usedCodes.Add(code))
-                {
-                    code = GenerateSequenceCode(usedCodes, ref nextIndex);
-                }
+                code = GenerateSequenceCode(usedCodes, ref nextIndex, prefix);
             }
+
+            code = TrimToLength(code, 20);
+
+            if (!string.IsNullOrWhiteSpace(normalizedOriginalCode) && !normalizedOriginalCode.Equals(code, StringComparison.OrdinalIgnoreCase))
+            {
+                replacements[normalizedOriginalCode] = code;
+            }
+
+            UpdateNextIndexFromCode(code, prefix, ref nextIndex);
 
             var stepType = Enum.IsDefined(typeof(WorkflowStepType), step.StepType)
                 ? step.StepType
@@ -1091,6 +1109,22 @@ public class RequestWorkflowService : IRequestWorkflowService
                     NextStepYesCode = null,
                     NextStepNoCode = null
                 });
+            }
+        }
+
+        if (replacements.Count > 0)
+        {
+            foreach (var step in result)
+            {
+                if (step.StepType == WorkflowStepType.KararNoktasi)
+                {
+                    step.NextStepYesCode = ReplaceSequenceReference(step.NextStepYesCode, replacements);
+                    step.NextStepNoCode = ReplaceSequenceReference(step.NextStepNoCode, replacements);
+                }
+                else
+                {
+                    step.NextStepCode = ReplaceSequenceReference(step.NextStepCode, replacements);
+                }
             }
         }
 
@@ -1220,17 +1254,82 @@ public class RequestWorkflowService : IRequestWorkflowService
         }
     }
 
-    private static string GenerateSequenceCode(HashSet<string> usedCodes, ref int nextIndex)
+    private static string GenerateSequenceCode(HashSet<string> usedCodes, ref int nextIndex, string prefix)
     {
+        if (nextIndex < 1)
+        {
+            nextIndex = 1;
+        }
+
+        var normalizedPrefix = string.IsNullOrWhiteSpace(prefix)
+            ? "A"
+            : prefix.ToUpperInvariant();
+
         while (true)
         {
-            var candidate = $"A{nextIndex}";
+            var candidate = $"{normalizedPrefix}{nextIndex}";
             nextIndex++;
             if (usedCodes.Add(candidate))
             {
                 return candidate;
             }
         }
+    }
+
+    private static void UpdateNextIndexFromCode(string code, string prefix, ref int nextIndex)
+    {
+        if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(prefix))
+        {
+            return;
+        }
+
+        if (!code.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var suffix = code[prefix.Length..];
+        if (int.TryParse(suffix, out var number) && number >= nextIndex)
+        {
+            nextIndex = number + 1;
+        }
+    }
+
+    private static string GetSequencePrefix(int index)
+    {
+        if (index < 0)
+        {
+            index = 0;
+        }
+
+        var value = index;
+        Span<char> buffer = stackalloc char[8];
+        var position = buffer.Length;
+
+        value++;
+
+        while (value > 0)
+        {
+            value--;
+            var remainder = value % 26;
+            buffer[--position] = (char)('A' + remainder);
+            value /= 26;
+        }
+
+        return new string(buffer[position..]);
+    }
+
+    private static string? ReplaceSequenceReference(string? value, IDictionary<string, string> replacements)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return value;
+        }
+
+        var key = value.ToUpperInvariant();
+        return replacements.TryGetValue(key, out var replacement)
+            ? replacement
+            : key;
     }
 
     private static string TrimToLength(string value, int maxLength)
