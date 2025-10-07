@@ -1,0 +1,13 @@
+@model ErrorViewModel
+@{
+    ViewData["Title"] = "Hata";
+}
+
+<section class="form-alani">
+    <h1>Bir sorun oluştu.</h1>
+    <p>Beklenmeyen bir hata ile karşılaşıldı. Lütfen daha sonra tekrar deneyiniz.</p>
+    @if (Model.ShowRequestId)
+    {
+        <p><strong>Talep Numarası:</strong> @Model.RequestId</p>
+    }
+</section>

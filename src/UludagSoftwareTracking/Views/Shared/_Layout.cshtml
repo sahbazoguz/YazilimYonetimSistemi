@@ -1,0 +1,97 @@
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@{
+    var tokens = Antiforgery.GetAndStoreTokens(Context);
+}
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - ULUDAĞ Yazılım Takip Sistemi</title>
+    <meta name="csrf-token" content="@tokens.RequestToken" />
+    <link rel="stylesheet" href="~/css/site.css" />
+</head>
+<body>
+    <header class="ust-menu">
+        <div class="logo">ULUDAĞ Yazılım Takip Sistemi</div>
+        <nav>
+            <ul>
+                <li><a asp-controller="Home" asp-action="Index">Ana Sayfa</a></li>
+                <li><a asp-controller="Software" asp-action="Index">Yazılım Kataloğu</a></li>
+                @if (User.Identity?.IsAuthenticated ?? false)
+                {
+                    if (User.IsInRole(RoleConstants.Roles.BirimKullanicisi) || User.IsInRole(RoleConstants.Roles.BirimYetkilisi) || User.IsInRole(RoleConstants.Roles.Admin))
+                    {
+                        <li><a asp-controller="Requests" asp-action="Taleplerim">Taleplerim</a></li>
+                    }
+                    if (User.IsInRole(RoleConstants.Roles.BirimYetkilisi) || User.IsInRole(RoleConstants.Roles.Admin))
+                    {
+                        <li><a asp-controller="Requests" asp-action="Birim">Birim Talepleri</a></li>
+                        <li><a asp-controller="Requests" asp-action="OnayBekleyen">Onay Bekleyen Talepler</a></li>
+                    }
+                    if (User.IsInRole(RoleConstants.Roles.DegerlendiriciBir) ||
+                        User.IsInRole(RoleConstants.Roles.DegerlendiriciIki) ||
+                        User.IsInRole(RoleConstants.Roles.DegerlendiriciUc) ||
+                        User.IsInRole(RoleConstants.Roles.Admin))
+                    {
+                        <li><a asp-controller="Requests" asp-action="DegerlendirmeBekleyen">Değerlendirme Listesi</a></li>
+                        <li><a asp-controller="Requests" asp-action="DegerlendirmeGecmisi">Değerlendirme Geçmişim</a></li>
+                    }
+                    if (User.IsInRole(RoleConstants.Roles.DegerlendirmeBaskani) || User.IsInRole(RoleConstants.Roles.Admin))
+                    {
+                        <li><a asp-controller="Requests" asp-action="BaskanOnayBekleyen">Başkan Onayları</a></li>
+                        <li><a asp-controller="Requests" asp-action="BaskanGecmisi">Başkan Geçmişi</a></li>
+                        <li><a asp-controller="Departments" asp-action="Yonet">Birim Yönetimi</a></li>
+                        <li><a asp-controller="SoftwareManagement" asp-action="Yonet">Yazılım Yönetimi</a></li>
+                    }
+                    if (User.IsInRole(RoleConstants.Roles.Yazilimci) || User.IsInRole(RoleConstants.Roles.Admin))
+                    {
+                        <li><a asp-controller="Dashboard" asp-action="Index">Proje Panosu</a></li>
+                    }
+                    if (User.IsInRole(RoleConstants.Roles.Admin))
+                    {
+                        <li><a asp-controller="Admin" asp-action="Index">Sistem Yönetimi</a></li>
+                        <li><a asp-controller="Admin" asp-action="Degerlendirmeler">Değerlendirme Kayıtları</a></li>
+                        <li><a asp-controller="Admin" asp-action="Loglar">İşlem Günlüğü</a></li>
+                    }
+                }
+            </ul>
+        </nav>
+        <div class="kullanici">
+            @if (User.Identity?.IsAuthenticated ?? false)
+            {
+                @await Component.InvokeAsync("Notifications")
+                <form asp-controller="Account" asp-action="Cikis" method="post" class="cikis-form">
+                    <span class="kullanici-adi">@User.Identity!.Name</span>
+                    <button type="submit" class="cikis-buton">Çıkış Yap</button>
+                </form>
+            }
+            else
+            {
+                <span>Misafir</span>
+                <a class="giris-buton" asp-controller="Account" asp-action="Giris">Giriş Yap</a>
+            }
+        </div>
+    </header>
+
+    <main class="icerik">
+        @if (TempData.ContainsKey("Success"))
+        {
+            <div class="bilgi-kutu basarili">@TempData["Success"]</div>
+        }
+        @if (TempData.ContainsKey("Warning"))
+        {
+            <div class="bilgi-kutu uyari">@TempData["Warning"]</div>
+        }
+        @RenderBody()
+    </main>
+
+    <footer class="alt-bilgi">
+        <p>&copy; @DateTime.Now.Year Uludağ Üniversitesi Bilgi İşlem Dairesi</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="~/js/site.js"></script>
+    @RenderSection("Scripts", required: false)
+</body>
+</html>

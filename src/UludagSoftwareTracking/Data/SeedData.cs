@@ -1,0 +1,323 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Microsoft.EntityFrameworkCore;
+using UludagSoftwareTracking.Models.Entities;
+
+namespace UludagSoftwareTracking.Data;
+
+public static class SeedData
+{
+    public static async Task EnsureSeedDataAsync(ApplicationDbContext context)
+    {
+        await context.Database.MigrateAsync();
+
+        const string bilgiIslemDepartmentName = "Bilgi İşlem Daire Başkanlığı";
+        const string muhendislikDepartmentName = "Mühendislik Fakültesi";
+        const string iibfDepartmentName = "İktisadi ve İdari Bilimler Fakültesi";
+        const string rektorlukDepartmentName = "Rektörlük";
+
+        var departmentNames = new[]
+        {
+            bilgiIslemDepartmentName,
+            muhendislikDepartmentName,
+            iibfDepartmentName,
+            rektorlukDepartmentName
+        };
+
+        if (!await context.Departments.AnyAsync())
+        {
+            var departments = new List<Department>
+            {
+                new()
+                {
+                    Name = bilgiIslemDepartmentName,
+                    Description = "Üniversite genelinde yazılım ve altyapı yönetiminden sorumlu."
+                },
+                new()
+                {
+                    Name = muhendislikDepartmentName,
+                    Description = "Mühendislik fakültesi taleplerinin yönetimi."
+                },
+                new()
+                {
+                    Name = iibfDepartmentName,
+                    Description = "İİBF özel yazılım gereksinimleri."
+                },
+                new()
+                {
+                    Name = rektorlukDepartmentName,
+                    Description = "Kurumsal yönetim ve raporlama ihtiyaçları."
+                }
+            };
+
+            await context.Departments.AddRangeAsync(departments);
+            await context.SaveChangesAsync();
+        }
+
+        var departmentLookup = await context.Departments
+            .Where(d => departmentNames.Contains(d.Name))
+            .ToDictionaryAsync(d => d.Name, d => d.Id);
+
+        const string adminUserName = "ULUDAG\\admin";
+        const string birimYetkilisiUserName = "ULUDAG\\birimyetkilisi1";
+        const string birimKullanicisiUserName = "ULUDAG\\birimkullanicisi1";
+        const string birimYetkilisiIibfUserName = "ULUDAG\\birimyetkilisi2";
+        const string birimKullanicisiIibfUserName = "ULUDAG\\birimkullanicisi2";
+        const string birimYetkilisiRektorlukUserName = "ULUDAG\\birimyetkilisi3";
+        const string birimKullanicisiRektorlukUserName = "ULUDAG\\birimkullanicisi3";
+        const string degerlendiriciBirUserName = "ULUDAG\\deger1";
+        const string degerlendiriciIkiUserName = "ULUDAG\\deger2";
+        const string degerlendiriciUcUserName = "ULUDAG\\deger3";
+        const string baskanUserName = "ULUDAG\\baskan";
+        const string yazilimciUserName = "ULUDAG\\yazilimci1";
+        const string ogrenciUserName = "ULUDAG\\ogrenci";
+        const string personelUserName = "ULUDAG\\personel";
+
+        var defaultUserNames = new[]
+        {
+            adminUserName,
+            birimYetkilisiUserName,
+            birimKullanicisiUserName,
+            birimYetkilisiIibfUserName,
+            birimKullanicisiIibfUserName,
+            birimYetkilisiRektorlukUserName,
+            birimKullanicisiRektorlukUserName,
+            degerlendiriciBirUserName,
+            degerlendiriciIkiUserName,
+            degerlendiriciUcUserName,
+            baskanUserName,
+            yazilimciUserName,
+            ogrenciUserName,
+            personelUserName
+        };
+
+        if (!await context.UserProfiles.AnyAsync())
+        {
+            const string defaultPasswordHash = "100000.aNKwrWGNkZEHUNENojB34w==.uCS5gjDouEetKgxujidgEjywIO6q9meU1rtP9j0VqDA=";
+
+            var admin = new UserProfile
+            {
+                UserName = adminUserName,
+                FullName = "Sistem Yöneticisi",
+                Email = "admin@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
+                Role = UserRole.Admin,
+                DepartmentId = departmentLookup[bilgiIslemDepartmentName]
+            };
+
+            var birimYetkilisi = new UserProfile
+            {
+                UserName = birimYetkilisiUserName,
+                FullName = "Mühendislik Birim Yetkilisi",
+                Email = "birim.yetkilisi1@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
+                Role = UserRole.BirimYetkilisi,
+                DepartmentId = departmentLookup[muhendislikDepartmentName]
+            };
+
+            var birimKullanicisi = new UserProfile
+            {
+                UserName = birimKullanicisiUserName,
+                FullName = "Mühendislik Birim Kullanıcısı",
+                Email = "birim.kullanici1@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
+                Role = UserRole.BirimKullanicisi,
+                DepartmentId = departmentLookup[muhendislikDepartmentName]
+            };
+
+            var birimYetkilisiIibf = new UserProfile
+            {
+                UserName = birimYetkilisiIibfUserName,
+                FullName = "İİBF Birim Yetkilisi",
+                Email = "birim.yetkilisi2@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
+                Role = UserRole.BirimYetkilisi,
+                DepartmentId = departmentLookup[iibfDepartmentName]
+            };
+
+            var birimKullanicisiIibf = new UserProfile
+            {
+                UserName = birimKullanicisiIibfUserName,
+                FullName = "İİBF Birim Kullanıcısı",
+                Email = "birim.kullanici2@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
+                Role = UserRole.BirimKullanicisi,
+                DepartmentId = departmentLookup[iibfDepartmentName]
+            };
+
+            var birimYetkilisiRekt = new UserProfile
+            {
+                UserName = birimYetkilisiRektorlukUserName,
+                FullName = "Rektörlük Birim Yetkilisi",
+                Email = "birim.yetkilisi3@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
+                Role = UserRole.BirimYetkilisi,
+                DepartmentId = departmentLookup[rektorlukDepartmentName]
+            };
+
+            var birimKullanicisiRekt = new UserProfile
+            {
+                UserName = birimKullanicisiRektorlukUserName,
+                FullName = "Rektörlük Birim Kullanıcısı",
+                Email = "birim.kullanici3@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
+                Role = UserRole.BirimKullanicisi,
+                DepartmentId = departmentLookup[rektorlukDepartmentName]
+            };
+
+            var degerlendiriciBir = new UserProfile
+            {
+                UserName = degerlendiriciBirUserName,
+                FullName = "Teknik Değerlendirici 1",
+                Email = "deger1@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
+                Role = UserRole.DegerlendiriciBir,
+                DepartmentId = departmentLookup[bilgiIslemDepartmentName]
+            };
+
+            var degerlendiriciIki = new UserProfile
+            {
+                UserName = degerlendiriciIkiUserName,
+                FullName = "Teknik Değerlendirici 2",
+                Email = "deger2@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
+                Role = UserRole.DegerlendiriciIki,
+                DepartmentId = departmentLookup[bilgiIslemDepartmentName]
+            };
+
+            var degerlendiriciUc = new UserProfile
+            {
+                UserName = degerlendiriciUcUserName,
+                FullName = "Teknik Değerlendirici 3",
+                Email = "deger3@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
+                Role = UserRole.DegerlendiriciUc,
+                DepartmentId = departmentLookup[bilgiIslemDepartmentName]
+            };
+
+            var baskan = new UserProfile
+            {
+                UserName = baskanUserName,
+                FullName = "Değerlendirme Başkanı",
+                Email = "baskan@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
+                Role = UserRole.DegerlendirmeBaskani,
+                DepartmentId = departmentLookup[bilgiIslemDepartmentName]
+            };
+
+            var yazilimci = new UserProfile
+            {
+                UserName = yazilimciUserName,
+                FullName = "Yazılım Geliştirici",
+                Email = "yazilimci@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
+                Role = UserRole.Yazilimci,
+                DepartmentId = departmentLookup[bilgiIslemDepartmentName]
+            };
+
+            var ogrenci = new UserProfile
+            {
+                UserName = ogrenciUserName,
+                FullName = "Öğrenci Kullanıcısı",
+                Email = "ogrenci@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
+                Role = UserRole.Ogrenci,
+                DepartmentId = departmentLookup[muhendislikDepartmentName]
+            };
+
+            var personel = new UserProfile
+            {
+                UserName = personelUserName,
+                FullName = "Personel Kullanıcısı",
+                Email = "personel@uludag.edu.tr",
+                PasswordHash = defaultPasswordHash,
+                Role = UserRole.Personel,
+                DepartmentId = departmentLookup[iibfDepartmentName]
+            };
+
+            await context.UserProfiles.AddRangeAsync(
+                admin,
+                birimYetkilisi,
+                birimKullanicisi,
+                birimYetkilisiIibf,
+                birimKullanicisiIibf,
+                birimYetkilisiRekt,
+                birimKullanicisiRekt,
+                degerlendiriciBir,
+                degerlendiriciIki,
+                degerlendiriciUc,
+                baskan,
+                yazilimci,
+                ogrenci,
+                personel);
+            await context.SaveChangesAsync();
+        }
+
+        var userLookup = await context.UserProfiles
+            .Where(u => defaultUserNames.Contains(u.UserName))
+            .ToDictionaryAsync(u => u.UserName, u => u.Id);
+
+        if (!await context.SoftwareRequests.AnyAsync())
+        {
+            var request = new SoftwareRequest
+            {
+                Title = "Staj Yönetim Sistemi",
+                Description = "Fakülte öğrencilerinin staj süreçlerinin dijital yönetimi talep edilmektedir.",
+                DepartmentId = departmentLookup[muhendislikDepartmentName],
+                RequestedByUserId = userLookup[birimKullanicisiUserName],
+                Priority = RequestPriority.Yuksek,
+                Status = RequestStatus.OnayBekleniyor,
+                CreatedAt = DateTime.UtcNow.AddDays(-10)
+            };
+
+            await context.SoftwareRequests.AddAsync(request);
+            await context.SaveChangesAsync();
+
+            var approval = new RequestApproval
+            {
+                RequestId = request.Id,
+                ApprovedByUserId = userLookup[birimYetkilisiUserName],
+                Status = ApprovalStatus.Beklemede
+            };
+
+            await context.RequestApprovals.AddAsync(approval);
+            await context.SaveChangesAsync();
+        }
+
+        var stajYonetimRequestId = await context.SoftwareRequests
+            .Where(r => r.Title == "Staj Yönetim Sistemi")
+            .Select(r => (int?)r.Id)
+            .FirstOrDefaultAsync();
+
+        if (!await context.Projects.AnyAsync())
+        {
+            if (stajYonetimRequestId.HasValue)
+            {
+                var project = new Project
+                {
+                    RequestId = stajYonetimRequestId.Value,
+                    Name = "Staj Yönetim Sistemi Geliştirme",
+                    Description = "Onaylanan staj talepleri için yeni yazılım geliştirme projesi.",
+                    Status = ProjectStatus.Planlama,
+                    LeadUserId = userLookup[yazilimciUserName],
+                    StartDate = DateTime.UtcNow
+                };
+
+                await context.Projects.AddAsync(project);
+                await context.SaveChangesAsync();
+
+                var assignment = new ProjectAssignment
+                {
+                    ProjectId = project.Id,
+                    UserId = userLookup[yazilimciUserName],
+                    AssignedRole = "Yazılımcı",
+                    CompletionPercent = 0
+                };
+
+                await context.ProjectAssignments.AddAsync(assignment);
+                await context.SaveChangesAsync();
+            }
+        }
+    }
+}

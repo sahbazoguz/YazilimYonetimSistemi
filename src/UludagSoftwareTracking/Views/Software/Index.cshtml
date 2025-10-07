@@ -1,0 +1,73 @@
+@model SoftwareCatalogViewModel
+@{
+    ViewData["Title"] = "Yazılım Kataloğu";
+}
+
+<section class="form-alani">
+    <h1>Yazılım Kataloğu</h1>
+    <form asp-action="Index" method="get" class="filtre-formu">
+        <div class="form-grup">
+            <label asp-for="AramaMetni"></label>
+            <input asp-for="AramaMetni" placeholder="Yazılım adı" />
+        </div>
+        <div class="form-grup">
+            <label asp-for="BirimId"></label>
+            <select asp-for="BirimId" asp-items="@(new SelectList(Model.Birimler, "Id", "Name", Model.BirimId))">
+                <option value="">Tüm Birimler</option>
+            </select>
+        </div>
+        <div class="form-grup">
+            <button type="submit" class="btn btn-primary">Filtrele</button>
+        </div>
+    </form>
+</section>
+
+<section class="tablolu-liste">
+    @if (Model.Kayitlar.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th scope="col">Yazılım</th>
+                        <th scope="col">Açıklama</th>
+                        <th scope="col">Kategori</th>
+                        <th scope="col">Birim</th>
+                        <th scope="col">Kullanım Kılavuzu</th>
+                        <th scope="col" class="text-end">İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var yazilim in Model.Kayitlar)
+                    {
+                        <tr>
+                            <td>@yazilim.Ad</td>
+                            <td>@yazilim.Aciklama</td>
+                            <td>@yazilim.Kategori</td>
+                            <td>@yazilim.BirimAdi</td>
+                            <td>
+                                @if (!string.IsNullOrWhiteSpace(yazilim.KullanimKilavuzuUrl))
+                                {
+                                    <a href="@Url.Content(yazilim.KullanimKilavuzuUrl!)" target="_blank" rel="noopener" class="badge bg-success">
+                                        @(string.IsNullOrWhiteSpace(yazilim.KullanimKilavuzuBaslik) ? "Görüntüle" : yazilim.KullanimKilavuzuBaslik)
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Henüz eklenmedi</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                <a class="btn btn-outline-secondary btn-sm" asp-action="Detay" asp-route-id="@yazilim.Id">Detay</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <p>Listelenecek yazılım bulunamadı.</p>
+    }
+</section>

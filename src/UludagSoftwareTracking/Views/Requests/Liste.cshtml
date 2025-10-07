@@ -1,0 +1,49 @@
+@model RequestOverviewViewModel
+@{
+    ViewData["Title"] = Model.Baslik;
+}
+
+<section>
+    <h1>@Model.Baslik</h1>
+    @if (Model.Baslik == "Taleplerim")
+    {
+        <a class="buton-link" asp-action="Olustur">Yeni Talep Oluştur</a>
+    }
+    else if (Model.Baslik == "Değerlendirme Listesi")
+    {
+        <p class="yardim-metin">Geçmiş değerlendirmelerinizi görmek için <a asp-action="DegerlendirmeGecmisi">Değerlendirme Geçmişim</a> sayfasını ziyaret edebilirsiniz.</p>
+    }
+</section>
+
+@if (Model.Talepler.Any())
+{
+    <table class="tablo">
+        <thead>
+            <tr>
+                <th>Başlık</th>
+                <th>Durum</th>
+                <th>Birim</th>
+                <th>Talep Sahibi</th>
+                <th>Öncelik</th>
+                <th>Oluşturulma</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var talep in Model.Talepler)
+        {
+            <tr>
+                <td><a asp-action="Detay" asp-route-id="@talep.Id">@talep.Baslik</a></td>
+                <td>@talep.Durum</td>
+                <td>@talep.BirimAdi</td>
+                <td>@talep.TalepSahibi</td>
+                <td><span class="rozet">@talep.Oncelik</span></td>
+                <td>@talep.OlusturmaTarihi.ToString("dd.MM.yyyy")</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>Henüz kayıtlı talep bulunmuyor.</p>
+}

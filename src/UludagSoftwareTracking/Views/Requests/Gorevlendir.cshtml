@@ -1,0 +1,64 @@
+@model ProjectTeamAssignmentInputModel
+@using Microsoft.AspNetCore.Mvc.Rendering
+@{
+    ViewData["Title"] = "Ekip Görevlendir";
+    var liderSecenekleri = Model.Adaylar
+        .Select(aday => new SelectListItem
+        {
+            Value = aday.Id.ToString(),
+            Text = $"{aday.AdSoyad} ({aday.Birim})"
+        })
+        .ToList();
+    var gelistiriciSecenekleri = Model.Adaylar
+        .Select(aday => new SelectListItem
+        {
+            Value = aday.Id.ToString(),
+            Text = $"{aday.AdSoyad} ({aday.Birim})"
+        })
+        .ToList();
+    var testerSecenekleri = Model.Adaylar
+        .Select(aday => new SelectListItem
+        {
+            Value = aday.Id.ToString(),
+            Text = $"{aday.AdSoyad} ({aday.Birim})"
+        })
+        .ToList();
+}
+
+<section class="form-alani">
+    <h1>Proje Ekibi Görevlendir</h1>
+    <p><strong>Talep:</strong> @Model.TalepBasligi</p>
+    <p class="yardim-metin">Başkan onayı verilen talepler için ekip lideri, geliştirici ve test yazılımcılarını belirleyin.</p>
+
+    <form asp-action="Gorevlendir" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="RequestId" />
+        <div asp-validation-summary="ModelOnly" class="metin-hata"></div>
+
+        <div class="form-grup">
+            <label asp-for="LeadUserId"></label>
+            <select asp-for="LeadUserId" asp-items="liderSecenekleri" class="form-control">
+                <option value="">Lider seçin</option>
+            </select>
+        </div>
+
+        <div class="form-grup">
+            <label asp-for="DeveloperIds"></label>
+            <select asp-for="DeveloperIds" asp-items="gelistiriciSecenekleri" multiple size="6" class="form-control"></select>
+            <span asp-validation-for="DeveloperIds" class="metin-hata"></span>
+            <p class="yardim-metin">Bir geliştirici seçmek zorunludur. Lider seçerseniz otomatik olarak geliştirici listesine eklenir.</p>
+        </div>
+
+        <div class="form-grup">
+            <label asp-for="TesterIds"></label>
+            <select asp-for="TesterIds" asp-items="testerSecenekleri" multiple size="6" class="form-control"></select>
+            <span asp-validation-for="TesterIds" class="metin-hata"></span>
+            <p class="yardim-metin">Test ekibi isteğe bağlıdır. Çoklu seçim için Ctrl/Command tuşunu kullanın.</p>
+        </div>
+
+        <div class="buton-grup">
+            <button type="submit">Kaydet</button>
+            <a asp-action="Detay" asp-route-id="@Model.RequestId" class="buton-link">Talep Detayına Dön</a>
+        </div>
+    </form>
+</section>

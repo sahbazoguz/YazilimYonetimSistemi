@@ -1,0 +1,244 @@
+@using Microsoft.AspNetCore.Mvc.Rendering
+@using System.Linq
+@model SoftwareManagementViewModel
+@{
+    ViewData["Title"] = "Yazılım Yönetimi";
+}
+
+<section class="yonetim-baslik">
+    <h1>Yazılım Yönetimi</h1>
+    <p>Kataloğa alınan yazılımlar için temel bilgileri güncelleyin, sorumluları atayın.</p>
+</section>
+
+<section class="yonetim-formu">
+    <h2>Yeni Yazılım Ekle</h2>
+    <form asp-action="Ekle" method="post" class="form kart-form">
+        <div class="form-grup">
+            <label for="yeni-ad">Yazılım Adı</label>
+            <input id="yeni-ad" name="Name" />
+        </div>
+        <div class="form-grup">
+            <label for="yeni-aciklama">Açıklama</label>
+            <textarea id="yeni-aciklama" name="Description" rows="3"></textarea>
+        </div>
+        <div class="form-grup">
+            <label for="yeni-birim">Sorumlu Birim</label>
+            <select id="yeni-birim" name="DepartmentId">
+                <option value="">Birim Seçilmedi</option>
+                @foreach (var birim in Model.Birimler)
+                {
+                    <option value="@birim.Id">@birim.Name</option>
+                }
+            </select>
+        </div>
+        <div class="form-grup">
+            <label for="yeni-destek">Destek E-posta</label>
+            <input id="yeni-destek" name="SupportContact" />
+        </div>
+        <div class="form-grup">
+            <label for="yeni-web">Web Adresi</label>
+            <input id="yeni-web" name="WebsiteUrl" />
+        </div>
+        <div class="form-grup hizalama-son">
+            <button type="submit" class="btn btn-primary">Yazılımı Kaydet</button>
+        </div>
+    </form>
+</section>
+
+<section class="yonetim-listesi">
+    @if (Model.Yazilimlar.Any())
+    {
+        foreach (var yazilim in Model.Yazilimlar)
+        {
+            var gelistiriciSecenekleri = Model.YazilimciAdaylari
+                .Select(u => new SelectListItem
+                {
+                    Value = u.Id.ToString(),
+                    Text = $"{u.AdSoyad} ({u.Birim})",
+                    Selected = yazilim.Sorumluluklar.YazilimciIdleri.Contains(u.Id)
+                }).ToList();
+
+            var birimKullanicisiSecenekleri = Model.BirimKullanicisiAdaylari
+                .Select(u => new SelectListItem
+                {
+                    Value = u.Id.ToString(),
+                    Text = $"{u.AdSoyad} ({u.Birim})",
+                    Selected = yazilim.Sorumluluklar.BirimKullanicisiIdleri.Contains(u.Id)
+                }).ToList();
+
+            var birimYetkilisiSecenekleri = Model.BirimYetkilisiAdaylari
+                .Select(u => new SelectListItem
+                {
+                    Value = u.Id.ToString(),
+                    Text = $"{u.AdSoyad} ({u.Birim})",
+                    Selected = yazilim.Sorumluluklar.BirimYetkilisiIdleri.Contains(u.Id)
+                }).ToList();
+
+            <article class="yonetim-karti">
+                <header>
+                    <h3>@yazilim.Ad</h3>
+                    <p class="detay">
+                        <strong>Birim:</strong> @(string.IsNullOrWhiteSpace(yazilim.BirimAdi) ? "Belirtilmedi" : yazilim.BirimAdi)
+                    </p>
+                </header>
+                <div class="kart-icerik">
+                    <div class="ozet-bilgiler">
+                        <p><strong>Açıklama:</strong> @(string.IsNullOrWhiteSpace(yazilim.Aciklama) ? "Henüz belirtilmedi" : yazilim.Aciklama)</p>
+                        <p><strong>Destek E-posta:</strong> @(string.IsNullOrWhiteSpace(yazilim.DestekEposta) ? "Tanımlı değil" : yazilim.DestekEposta)</p>
+                        <p><strong>Web Adresi:</strong> @(string.IsNullOrWhiteSpace(yazilim.WebAdresi) ? "Tanımlı değil" : yazilim.WebAdresi)</p>
+                        <div class="sorumlu-listeleri">
+                            <div>
+                                <h4>Yazılımcılar</h4>
+                                <ul>
+                                    @foreach (var ad in yazilim.Yazilimcilar)
+                                    {
+                                        <li>@ad</li>
+                                    }
+                                    @if (!yazilim.Yazilimcilar.Any())
+                                    {
+                                        <li class="text-muted">Atama bekleniyor</li>
+                                    }
+                                </ul>
+                            </div>
+                            <div>
+                                <h4>Birim Kullanıcıları</h4>
+                                <ul>
+                                    @foreach (var ad in yazilim.BirimKullanicilari)
+                                    {
+                                        <li>@ad</li>
+                                    }
+                                    @if (!yazilim.BirimKullanicilari.Any())
+                                    {
+                                        <li class="text-muted">Atama bekleniyor</li>
+                                    }
+                                </ul>
+                            </div>
+                            <div>
+                                <h4>Birim Yetkilileri</h4>
+                                <ul>
+                                    @foreach (var ad in yazilim.BirimYetkilileri)
+                                    {
+                                        <li>@ad</li>
+                                    }
+                                    @if (!yazilim.BirimYetkilileri.Any())
+                                    {
+                                        <li class="text-muted">Atama bekleniyor</li>
+                                    }
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="kart-formlar">
+                        <form asp-action="Guncelle" method="post" class="form ic-form">
+                            <input type="hidden" name="Id" value="@yazilim.Duzenleme.Id" />
+                            <div class="form-grup">
+                                <label for="ad-@yazilim.Id">Yazılım Adı</label>
+                                <input id="ad-@yazilim.Id" name="Name" value="@yazilim.Duzenleme.Name" />
+                            </div>
+                            <div class="form-grup">
+                                <label for="aciklama-@yazilim.Id">Açıklama</label>
+                                <textarea id="aciklama-@yazilim.Id" name="Description" rows="3">@yazilim.Duzenleme.Description</textarea>
+                            </div>
+                            <div class="form-grup">
+                                <label for="birim-@yazilim.Id">Sorumlu Birim</label>
+                                <select id="birim-@yazilim.Id" name="DepartmentId">
+                                    <option value="">Birim Seçilmedi</option>
+                                    @foreach (var birim in Model.Birimler)
+                                    {
+                                        if (yazilim.Duzenleme.DepartmentId == birim.Id)
+                                        {
+                                            <option value="@birim.Id" selected>@birim.Name</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@birim.Id">@birim.Name</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-grup">
+                                <label for="destek-@yazilim.Id">Destek E-posta</label>
+                                <input id="destek-@yazilim.Id" name="SupportContact" value="@yazilim.Duzenleme.SupportContact" />
+                            </div>
+                            <div class="form-grup">
+                                <label for="web-@yazilim.Id">Web Adresi</label>
+                                <input id="web-@yazilim.Id" name="WebsiteUrl" value="@yazilim.Duzenleme.WebsiteUrl" />
+                            </div>
+                            <div class="form-grup hizalama-son">
+                                <button type="submit" class="btn btn-secondary">Bilgileri Güncelle</button>
+                            </div>
+                        </form>
+
+                        <form asp-action="SorumlulukGuncelle" method="post" class="form ic-form">
+                            <input type="hidden" name="SoftwareId" value="@yazilim.Id" />
+                            <div class="form-grup">
+                                <label>Yetkili Yazılımcılar</label>
+                                <select name="YazilimciIdleri" multiple size="5">
+                                    @foreach (var secenek in gelistiriciSecenekleri)
+                                    {
+                                        if (secenek.Selected)
+                                        {
+                                            <option value="@secenek.Value" selected>@secenek.Text</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@secenek.Value">@secenek.Text</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-grup">
+                                <label>Yetkili Birim Kullanıcıları</label>
+                                <select name="BirimKullanicisiIdleri" multiple size="5">
+                                    @foreach (var secenek in birimKullanicisiSecenekleri)
+                                    {
+                                        if (secenek.Selected)
+                                        {
+                                            <option value="@secenek.Value" selected>@secenek.Text</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@secenek.Value">@secenek.Text</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-grup">
+                                <label>Yetkili Birim Yetkilileri</label>
+                                <select name="BirimYetkilisiIdleri" multiple size="5">
+                                    @foreach (var secenek in birimYetkilisiSecenekleri)
+                                    {
+                                        if (secenek.Selected)
+                                        {
+                                            <option value="@secenek.Value" selected>@secenek.Text</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@secenek.Value">@secenek.Text</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-grup hizalama-son">
+                                <button type="submit" class="btn btn-outline-primary">Sorumluları Güncelle</button>
+                            </div>
+                        </form>
+
+                        <form asp-action="Sil" method="post" class="ic-form silme-formu" onsubmit="return confirm('Bu yazılımı silmek istediğinize emin misiniz?');">
+                            <input type="hidden" name="id" value="@yazilim.Id" />
+                            <button type="submit" class="btn btn-danger">Yazılımı Sil</button>
+                        </form>
+                    </div>
+                </div>
+            </article>
+        }
+    }
+    else
+    {
+        <p>Kataloğa eklenmiş yazılım bulunmuyor.</p>
+    }
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

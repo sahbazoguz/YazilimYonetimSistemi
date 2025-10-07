@@ -1,0 +1,32 @@
+@model AdminRoleAssignmentViewModel
+@{
+    ViewData["Title"] = "Rol Ataması";
+}
+
+<section class="form-alani">
+    <h1>Rol Ataması</h1>
+    <form asp-action="RolAta" method="post">
+        <div asp-validation-summary="ModelOnly" class="bilgi-kutu uyari"></div>
+        <div>
+            <label asp-for="UserName"></label>
+            <select asp-for="UserName" asp-items="@(new SelectList(Model.KullaniciListesi, "UserName", "FullName", Model.UserName))"></select>
+            <span asp-validation-for="UserName" class="bilgi-kutu uyari"></span>
+        </div>
+        <div>
+            <label asp-for="Role"></label>
+            <select asp-for="Role" asp-items="Html.GetEnumSelectList<UserRole>()"></select>
+        </div>
+        <div>
+            <label asp-for="DepartmentId"></label>
+            <select asp-for="DepartmentId" asp-items="@(new SelectList(Model.Departments, "Id", "Name", Model.DepartmentId))">
+                <option value="">Genel Yetki</option>
+            </select>
+        </div>
+        <button type="submit">Kaydet</button>
+        <a class="buton-link ikincil" asp-action="Index">İptal</a>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

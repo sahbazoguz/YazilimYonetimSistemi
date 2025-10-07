@@ -1,0 +1,58 @@
+@model UludagSoftwareTracking.Controllers.AccountController.LoginViewModel
+@{
+    ViewData["Title"] = "Sisteme Giriş";
+}
+
+<section class="form-kapsayici">
+    <h1 class="sayfa-baslik">Sisteme Giriş</h1>
+    <p class="aciklama">Kurumsal kullanıcı adınız ve şifreniz ile giriş yapabilir ya da etki alanı hesabınızla doğrulanabilirsiniz.</p>
+
+    <form asp-action="Giris" method="post" class="form">
+        <input type="hidden" asp-for="ReturnUrl" />
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <div class="form-grup">
+            <label asp-for="KullaniciAdi" class="form-label"></label>
+            <input asp-for="KullaniciAdi" class="form-control" autocomplete="username" />
+            <span asp-validation-for="KullaniciAdi" class="text-danger"></span>
+        </div>
+
+        <div class="form-grup">
+            <label asp-for="Sifre" class="form-label"></label>
+            <input asp-for="Sifre" class="form-control" autocomplete="current-password" />
+            <span asp-validation-for="Sifre" class="text-danger"></span>
+        </div>
+
+        <div class="form-check">
+            <input asp-for="BeniHatirla" class="form-check-input" />
+            <label asp-for="BeniHatirla" class="form-check-label"></label>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Giriş Yap</button>
+    </form>
+
+    <div class="test-hesaplari">
+        <h2>Test Hesapları</h2>
+        <p>Yerel geliştirme sırasında aşağıdaki kullanıcı adları ile giriş yapabilirsiniz. Tüm test hesaplarının şifresi <strong>Parola123!</strong> değeridir. Kullanıcı adını doğrudan yazabilir veya <code>ULUDAG\\</code> etki alanı öneki ile kullanabilirsiniz.</p>
+        <ul>
+            <li><strong>admin</strong> &mdash; Sistem Yöneticisi (Admin)</li>
+            <li><strong>birimyetkilisi1</strong> &mdash; Mühendislik Birim Yetkilisi</li>
+            <li><strong>birimkullanicisi1</strong> &mdash; Mühendislik Birim Kullanıcısı</li>
+            <li><strong>birimyetkilisi2</strong> &mdash; İİBF Birim Yetkilisi</li>
+            <li><strong>birimkullanicisi2</strong> &mdash; İİBF Birim Kullanıcısı</li>
+            <li><strong>birimyetkilisi3</strong> &mdash; Rektörlük Birim Yetkilisi</li>
+            <li><strong>birimkullanicisi3</strong> &mdash; Rektörlük Birim Kullanıcısı</li>
+            <li><strong>deger1</strong> &mdash; Teknik Değerlendirici 1</li>
+            <li><strong>deger2</strong> &mdash; Teknik Değerlendirici 2</li>
+            <li><strong>deger3</strong> &mdash; Teknik Değerlendirici 3</li>
+            <li><strong>baskan</strong> &mdash; Değerlendirme Başkanı</li>
+            <li><strong>yazilimci1</strong> &mdash; Yazılımcı</li>
+            <li><strong>ogrenci</strong> &mdash; Öğrenci</li>
+            <li><strong>personel</strong> &mdash; Personel</li>
+        </ul>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

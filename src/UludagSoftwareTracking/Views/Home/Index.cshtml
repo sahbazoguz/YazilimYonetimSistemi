@@ -1,0 +1,105 @@
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Kontrol Paneli";
+}
+
+<section>
+    <h1>Merhaba @Model.KullaniciAdi</h1>
+    <p>Aktif rolünüz: <strong>@Model.Rol</strong></p>
+</section>
+
+<section class="kartlar">
+    @foreach (var kutucuk in Model.Kutucuklar)
+    {
+        <div class="kart">
+            <div class="kart baslik">@kutucuk.Baslik</div>
+            <div class="kart deger">@kutucuk.Deger</div>
+        </div>
+    }
+</section>
+
+@if (Model.KritikTalepler.Any())
+{
+    <section>
+        <h2>Kritik Talepler</h2>
+        <table class="tablo">
+            <thead>
+                <tr>
+                    <th>Başlık</th>
+                    <th>Durum</th>
+                    <th>Birim</th>
+                    <th>Talep Sahibi</th>
+                    <th>Öncelik</th>
+                    <th>Oluşturulma</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var talep in Model.KritikTalepler)
+            {
+                <tr>
+                    <td><a asp-controller="Requests" asp-action="Detay" asp-route-id="@talep.Id">@talep.Baslik</a></td>
+                    <td>@talep.Durum</td>
+                    <td>@talep.BirimAdi</td>
+                    <td>@talep.TalepSahibi</td>
+                    <td><span class="rozet">@talep.Oncelik</span></td>
+                    <td>@talep.OlusturmaTarihi.ToString("dd.MM.yyyy")</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </section>
+}
+
+@if (Model.AktifProjeler.Any())
+{
+    <section>
+        <h2>Aktif Projeler</h2>
+        <div class="kart-listesi">
+            @foreach (var proje in Model.AktifProjeler)
+            {
+                <div class="kart">
+                    <div class="kart-baslik">@proje.Name</div>
+                    <div class="kart-icerik">Durum: <strong>@proje.Status</strong></div>
+                    <div class="kart-icerik">Talep: <a asp-controller="Requests" asp-action="Detay" asp-route-id="@proje.RequestId">@proje.Request?.Title</a></div>
+                    <div class="kart-icerik">Birim: @proje.Request?.Department?.Name</div>
+                </div>
+            }
+        </div>
+    </section>
+}
+
+@if (Model.OneCikanYazilimlar.Any())
+{
+    <section>
+        <h2>Öne Çıkan Yazılımlar</h2>
+        <div class="kart-listesi">
+            @foreach (var yazilim in Model.OneCikanYazilimlar)
+            {
+                <div class="kart">
+                    <div class="kart-baslik">@yazilim.Name</div>
+                    <div class="kart-icerik">@yazilim.Description</div>
+                    <div class="kart-icerik">Teknoloji: @yazilim.TechnologyStack</div>
+                    <a class="rozet" asp-controller="Software" asp-action="Detay" asp-route-id="@yazilim.Id">İncele</a>
+                </div>
+            }
+        </div>
+    </section>
+}
+
+@if (Model.SonKilavuzlar.Any())
+{
+    <section>
+        <h2>Son Güncellenen Kılavuzlar</h2>
+        <div class="kart-listesi">
+            @foreach (var kilavuz in Model.SonKilavuzlar)
+            {
+                <div class="kart">
+                    <div class="kart-baslik">@kilavuz.Title</div>
+                    <div class="kart-icerik">Yazılım: @kilavuz.Software?.Name</div>
+                    <div class="kart-icerik">Versiyon: @kilavuz.Version</div>
+                    <div class="kart-icerik">Tarih: @kilavuz.UploadedOn.ToString("dd.MM.yyyy")</div>
+                </div>
+            }
+        </div>
+    </section>
+}

@@ -1,0 +1,379 @@
+@model RequestDetailViewModel
+@using System.Text.Json
+@using System.Text.Json.Serialization
+@using System.Linq
+@using UludagSoftwareTracking.Models.Entities
+@{
+    ViewData["Title"] = Model.Talep?.Title ?? "Talep Detayı";
+}
+
+@functions {
+    public static string StageName(AssessmentStage stage) => stage switch
+    {
+        AssessmentStage.DegerlendiriciBir => "Değerlendirici 1",
+        AssessmentStage.DegerlendiriciIki => "Değerlendirici 2",
+        AssessmentStage.DegerlendiriciUc => "Değerlendirici 3",
+        AssessmentStage.BaskanOnayi => "Değerlendirme Başkanı",
+        _ => "Değerlendirme"
+    };
+}
+
+<section class="form-alani">
+    <h1>@Model.Talep?.Title</h1>
+    <p>@Model.Talep?.Description</p>
+    <p><strong>Birim:</strong> @Model.Talep?.Department?.Name</p>
+    <p><strong>Talep Sahibi:</strong> @Model.Talep?.RequestedByUser?.FullName</p>
+    <p><strong>Durum:</strong> @Model.Talep?.Status</p>
+    <p><strong>Öncelik:</strong> @Model.Talep?.Priority</p>
+    <p><strong>Oluşturulma:</strong> @Model.Talep?.CreatedAt.ToString("dd.MM.yyyy")</p>
+    @if (Model.Talep?.DesiredCompletionDate is not null)
+    {
+        <p><strong>Hedef Tarih:</strong> @Model.Talep.DesiredCompletionDate?.ToString("dd.MM.yyyy")</p>
+    }
+    @if (!string.IsNullOrWhiteSpace(Model.Talep?.RejectionReason))
+    {
+        <p><strong>Red Nedeni:</strong> @Model.Talep?.RejectionReason</p>
+    }
+</section>
+
+@if (Model.Onaylar.Any())
+{
+    <section>
+        <h2>Onay Geçmişi</h2>
+        <table class="tablo">
+            <thead>
+                <tr>
+                    <th>Durum</th>
+                    <th>Yetkili</th>
+                    <th>Tarih</th>
+                    <th>Not</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var onay in Model.Onaylar)
+            {
+                <tr>
+                    <td>@onay.Status</td>
+                    <td>@onay.ApprovedByUser?.FullName</td>
+                    <td>@onay.DecidedAt?.ToString("dd.MM.yyyy")</td>
+                    <td>@onay.Notes</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </section>
+}
+
+@{
+    var kullaniciBirim = User.IsInRole(RoleConstants.Roles.BirimKullanicisi) || User.IsInRole(RoleConstants.Roles.BirimYetkilisi);
+}
+
+@if (Model.Degerlendirmeler.Any() && !kullaniciBirim)
+{
+    <section>
+        <h2>Teknik Değerlendirme</h2>
+        <table class="tablo">
+            <thead>
+                <tr>
+                    <th>Aşama</th>
+                    <th>Sonuç</th>
+                    <th>Uzman</th>
+                    <th>Tarih</th>
+                    <th>Açıklama</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var degerlendirme in Model.Degerlendirmeler)
+            {
+                <tr>
+                    <td>@StageName(degerlendirme.Stage)</td>
+                    <td>@degerlendirme.Result</td>
+                    <td>@degerlendirme.AssessedByUser?.FullName</td>
+                    <td>@degerlendirme.AssessedOn?.ToString("dd.MM.yyyy")</td>
+                    <td>@degerlendirme.Notes</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </section>
+}
+else if (kullaniciBirim && Model.Talep is not null)
+{
+    var durum = Model.Talep.Status;
+    <section>
+        <h2>Talep Durumu</h2>
+        <ul class="durum-zinciri">
+            <li class="aktif">Başvuru Alındı</li>
+            <li class="@(durum >= RequestStatus.OnayBekleniyor ? "aktif" : string.Empty)">Birim Onayı Bekleniyor</li>
+            <li class="@(durum >= RequestStatus.Degerlendirmede ? "aktif" : string.Empty)">Değerlendirmede</li>
+            <li class="@(durum == RequestStatus.Gelistirmede || durum == RequestStatus.Tamamlandi || durum == RequestStatus.Kapandi ? "aktif" : string.Empty)">Onaylandı</li>
+            @if (durum == RequestStatus.Reddedildi)
+            {
+                <li class="aktif reddedildi">Reddedildi</li>
+            }
+        </ul>
+        @if (durum == RequestStatus.BaskanOnayiBekliyor)
+        {
+            <p class="yardim-metin">Teknik değerlendirme tamamlandı, başkan onayı bekleniyor.</p>
+        }
+        @if (durum == RequestStatus.Reddedildi && !string.IsNullOrWhiteSpace(Model.Talep.RejectionReason))
+        {
+            <p class="bilgi-kutu uyari">Red Gerekçesi: @Model.Talep.RejectionReason</p>
+        }
+    </section>
+}
+
+@if (Model.Proje is not null)
+{
+    <section class="form-alani">
+        <h2>İlgili Proje</h2>
+        <p><strong>Proje Adı:</strong> @Model.Proje.Name</p>
+        <p><strong>Durum:</strong> @Model.Proje.Status</p>
+        <p><strong>Sorumlu:</strong> @(Model.Proje.LeadUser?.FullName ?? "-")</p>
+        @if ((ViewData["TakimAtamaIzni"] as bool? ?? false))
+        {
+            <p>
+                <a class="buton-link" asp-action="Gorevlendir" asp-route-id="@Model.Talep!.Id">Ekip Görevlendir</a>
+            </p>
+        }
+        <h3>İş Akışı Tasarımı</h3>
+        @{
+            var workflowsLocked = ViewData["IsAkisiPasif"] as bool? ?? true;
+            var canEditWorkflow = !workflowsLocked && (User.IsInRole(RoleConstants.Roles.BirimKullanicisi) || User.IsInRole(RoleConstants.Roles.Yazilimci) || User.IsInRole(RoleConstants.Roles.Admin));
+            var workflowOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+            workflowOptions.Converters.Add(new JsonStringEnumConverter());
+            var workflowJson = JsonSerializer.Serialize(Model.Workflows ?? Array.Empty<WorkflowDefinitionViewModel>(), workflowOptions);
+        }
+        <div class="is-akisi-blok"
+             data-workflow-designer
+             data-initial='@Html.Raw(workflowJson)'
+             data-can-edit="@canEditWorkflow.ToString().ToLowerInvariant()"
+             data-input="#workflowJsonInput"
+             data-empty="Henüz iş akışı tanımlanmamış.">
+            <div class="is-akisi-liste" data-workflow-list>
+                <noscript>
+                    @if (Model.Workflows?.Any() == true)
+                    {
+                        <ul class="is-akisi-ozet">
+                            @foreach (var akis in Model.Workflows ?? Enumerable.Empty<WorkflowDefinitionViewModel>())
+                            {
+                                <li>
+                                    <strong>@akis.Title</strong>
+                                    <ol>
+                                        @foreach (var adim in akis.Steps ?? Enumerable.Empty<WorkflowStepViewModel>())
+                                        {
+                                            <li>
+                                                <span class="is-akisi-kod">@adim.SequenceCode</span>
+                                                <span class="is-akisi-aciklama">@adim.Description</span>
+                                                <span class="is-akisi-rol">Tür: @(adim.StepType == WorkflowStepType.KararNoktasi ? "Karar Noktası" : "Normal")</span>
+                                                @if (!string.IsNullOrWhiteSpace(adim.Role))
+                                                {
+                                                    <span class="is-akisi-rol">@adim.Role</span>
+                                                }
+                                                @if (adim.StepType == WorkflowStepType.KararNoktasi)
+                                                {
+                                                    <span class="is-akisi-sonraki">Evet: @(string.IsNullOrWhiteSpace(adim.NextStepYesCode) ? "-" : adim.NextStepYesCode)</span>
+                                                    <span class="is-akisi-sonraki">Hayır: @(string.IsNullOrWhiteSpace(adim.NextStepNoCode) ? "-" : adim.NextStepNoCode)</span>
+                                                }
+                                                else if (!string.IsNullOrWhiteSpace(adim.NextStepCode))
+                                                {
+                                                    <span class="is-akisi-sonraki">Sonraki: @adim.NextStepCode</span>
+                                                }
+                                            </li>
+                                        }
+                                    </ol>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <p>Henüz iş akışı tanımlanmamış.</p>
+                    }
+                </noscript>
+            </div>
+            @if (canEditWorkflow)
+            {
+                <div class="is-akisi-aksiyonlar">
+                    <button type="button" class="buton-link" data-workflow-add>Yeni İş Akışı Ekle</button>
+                </div>
+            }
+        </div>
+        @if (canEditWorkflow)
+        {
+            <form asp-action="IsAkisiGuncelle" asp-route-id="@Model.Talep!.Id" method="post" class="is-akisi-form">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="isAkisiJson" id="workflowJsonInput" />
+                <button type="submit" class="buton-link" data-workflow-save>İş Akışlarını Kaydet</button>
+            </form>
+        }
+        else
+        {
+            var infoMessage = workflowsLocked
+                ? "Başkan onayı tamamlanmadan iş akışı düzenlenemez."
+                : "İş akışı yalnızca geliştiriciler ve talep sahibi birim tarafından düzenlenebilir.";
+            <p class="yardim-metin">@infoMessage</p>
+        }
+        <div class="kilavuz-blok">
+            <h3>Kılavuzlar</h3>
+            <ul class="kilavuz-listesi">
+                <li>
+                    <span class="kilavuz-etiket">Teknik Kılavuz:</span>
+                    @if (!string.IsNullOrWhiteSpace(Model.Proje.TechnicalGuidePath))
+                    {
+                        <a href="@Model.Proje.TechnicalGuidePath" target="_blank" rel="noopener">PDF'i görüntüle</a>
+                    }
+                    else
+                    {
+                        <span>Henüz yüklenmedi</span>
+                    }
+                </li>
+                <li>
+                    <span class="kilavuz-etiket">Kullanım Kılavuzu:</span>
+                    @if (!string.IsNullOrWhiteSpace(Model.Proje.UserGuidePath))
+                    {
+                        <a href="@Model.Proje.UserGuidePath" target="_blank" rel="noopener">PDF'i görüntüle</a>
+                    }
+                    else
+                    {
+                        <span>Henüz yüklenmedi</span>
+                    }
+                </li>
+            </ul>
+        </div>
+        @if (Model.Proje.CompletedOn is not null)
+        {
+            <p><strong>Geliştirme Tamamlanma Tarihi:</strong> @Model.Proje.CompletedOn?.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</p>
+        }
+        @if (Model.Proje.TestConfirmedOn is not null)
+        {
+            <p><strong>Birim Test Onayı:</strong> @Model.Proje.TestConfirmedOn?.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</p>
+        }
+    </section>
+}
+
+@if (Model.Proje is not null && User.IsInRole(RoleConstants.Roles.Yazilimci))
+{
+    <section class="form-alani">
+        <h2>Teknik Kılavuz Güncelle</h2>
+        <form asp-action="KilavuzGuncelle" asp-route-id="@Model.Talep!.Id" method="post" enctype="multipart/form-data">
+            <label for="teknikKilavuz">Teknik Kılavuz (PDF)</label>
+            <input type="file" id="teknikKilavuz" name="teknikKilavuzDosyasi" accept=".pdf" />
+            <p class="yardim-metin">Yalnızca geliştiriciler teknik kılavuz yükleyebilir. En fazla 20 MB boyutunda PDF yükleyin.</p>
+            @if (!string.IsNullOrWhiteSpace(Model.Proje.TechnicalGuidePath))
+            {
+                <p class="dosya-link"><a href="@Model.Proje.TechnicalGuidePath" target="_blank" rel="noopener">Mevcut teknik kılavuzu indir</a></p>
+            }
+            <button type="submit">Teknik Kılavuzu Güncelle</button>
+        </form>
+        @if (Model.Talep?.Status == RequestStatus.Gelistirmede)
+        {
+            <form asp-action="GelistirmeTamamla" asp-route-id="@Model.Talep!.Id" method="post" class="tek-satir-form">
+                <button type="submit" class="buton-link">Geliştirmeyi Tamamlandı Olarak İşaretle</button>
+            </form>
+        }
+    </section>
+}
+
+@if (Model.Proje is not null && User.IsInRole(RoleConstants.Roles.BirimKullanicisi))
+{
+    <section class="form-alani">
+        <h2>Kullanım Kılavuzu Güncelle</h2>
+        <form asp-action="KilavuzGuncelle" asp-route-id="@Model.Talep!.Id" method="post" enctype="multipart/form-data">
+            <label for="kullanimKilavuzu">Kullanım Kılavuzu (PDF)</label>
+            <input type="file" id="kullanimKilavuzu" name="kullanimKilavuzuDosyasi" accept=".pdf" />
+            <p class="yardim-metin">Kullanım kılavuzları yalnızca talep sahibi birim tarafından yüklenebilir.</p>
+            @if (!string.IsNullOrWhiteSpace(Model.Proje.UserGuidePath))
+            {
+                <p class="dosya-link"><a href="@Model.Proje.UserGuidePath" target="_blank" rel="noopener">Mevcut kullanım kılavuzunu indir</a></p>
+            }
+            <button type="submit">Kullanım Kılavuzunu Güncelle</button>
+        </form>
+    </section>
+}
+
+@if (User.IsInRole(RoleConstants.Roles.BirimYetkilisi) && Model.Talep?.Status == RequestStatus.OnayBekleniyor)
+{
+    <section class="form-alani">
+        <h2>Onay İşlemleri</h2>
+        <form asp-action="Onayla" method="post">
+            <input type="hidden" name="id" value="@Model.Talep!.Id" />
+            <label for="aciklama">Not</label>
+            <textarea name="aciklama" rows="3"></textarea>
+            <button type="submit">Onayla</button>
+        </form>
+        <form asp-action="Reddet" method="post">
+            <input type="hidden" name="id" value="@Model.Talep!.Id" />
+            <label for="aciklama">Red Nedeni</label>
+            <textarea name="aciklama" rows="3"></textarea>
+            <button type="submit" class="ikincil">Reddet</button>
+        </form>
+    </section>
+}
+
+@if ((User.IsInRole(RoleConstants.Roles.DegerlendiriciBir) ||
+      User.IsInRole(RoleConstants.Roles.DegerlendiriciIki) ||
+      User.IsInRole(RoleConstants.Roles.DegerlendiriciUc) ||
+      User.IsInRole(RoleConstants.Roles.Admin)) && Model.Talep?.Status == RequestStatus.Degerlendirmede)
+{
+    <section class="form-alani">
+        <a class="buton-link" asp-action="Degerlendir" asp-route-id="@Model.Talep!.Id">Teknik Değerlendirme Yap</a>
+    </section>
+}
+
+@if (User.IsInRole(RoleConstants.Roles.DegerlendirmeBaskani) && Model.Talep?.Status == RequestStatus.BaskanOnayiBekliyor)
+{
+    <section class="form-alani">
+        <a class="buton-link" asp-action="Degerlendir" asp-route-id="@Model.Talep!.Id">Başkan Kararı Ver</a>
+    </section>
+}
+
+@if (Model.Talep?.Status == RequestStatus.Tamamlandi &&
+    (User.IsInRole(RoleConstants.Roles.BirimKullanicisi) || User.IsInRole(RoleConstants.Roles.BirimYetkilisi) || User.IsInRole(RoleConstants.Roles.Admin)))
+{
+    <section class="form-alani">
+        <h2>Birim Test Onayı</h2>
+        <form asp-action="TestiOnayla" asp-route-id="@Model.Talep!.Id" method="post">
+            <p>Geliştirilen yazılımı test ettiğinizi onaylayın.</p>
+            <button type="submit">Test Onayı Ver</button>
+        </form>
+    </section>
+}
+
+@if (Model.Proje is not null)
+{
+    <section class="form-alani">
+        <h2>Geliştirici &amp; Birim Sohbeti</h2>
+        @if (Model.Mesajlar.Any())
+        {
+            <ul class="sohbet-listesi">
+                @foreach (var mesaj in Model.Mesajlar)
+                {
+                    <li>
+                        <div class="sohbet-baslik">
+                            <strong>@mesaj.Sender?.FullName</strong>
+                            <span>@mesaj.PostedOn.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                        </div>
+                        <p>@mesaj.Message</p>
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p>Henüz mesaj bulunmuyor.</p>
+        }
+
+        @if (User.IsInRole(RoleConstants.Roles.Yazilimci) ||
+            User.IsInRole(RoleConstants.Roles.BirimKullanicisi) ||
+            User.IsInRole(RoleConstants.Roles.BirimYetkilisi) ||
+            User.IsInRole(RoleConstants.Roles.Admin))
+        {
+            <form asp-action="MesajGonder" asp-route-id="@Model.Talep!.Id" method="post">
+                <label for="mesaj">Mesaj</label>
+                <textarea id="mesaj" name="mesaj" rows="3"></textarea>
+                <button type="submit">Gönder</button>
+            </form>
+        }
+    </section>
+}

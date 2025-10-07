@@ -1,0 +1,101 @@
+@model BaskanApprovalHistoryViewModel
+@using UludagSoftwareTracking.Models.Entities
+@using Microsoft.AspNetCore.Mvc.Rendering
+@{
+    ViewData["Title"] = "Başkan Onay Geçmişi";
+    string KararEtiketi(AssessmentResult sonuc) => sonuc switch
+    {
+        AssessmentResult.Uygun => "Uygun",
+        AssessmentResult.UygunDegil => "Uygun Değil",
+        AssessmentResult.VarOlanYazilimaYonlendirildi => "Var Olan Yazılıma Yönlendirildi",
+        AssessmentResult.YeniGelistirme => "Yeni Geliştirme",
+        _ => sonuc.ToString()
+    };
+
+    var kararSecenekleri = Enum.GetValues(typeof(AssessmentResult))
+        .Cast<AssessmentResult>()
+        .Where(k => k != AssessmentResult.Beklemede)
+        .Select(k => new SelectListItem
+        {
+            Value = k.ToString(),
+            Text = KararEtiketi(k)
+        })
+        .ToList();
+}
+
+<section class="form-alani">
+    <h1>Başkan Onay Geçmişi</h1>
+    <p class="yardim-metin">Verdiğiniz kararları tarih aralığı ve karar durumuna göre filtreleyebilirsiniz.</p>
+
+    <form method="get" class="filtre-formu">
+        <div class="filtre-satiri">
+            <div class="form-grup">
+                <label asp-for="Baslangic"></label>
+                <input asp-for="Baslangic" class="form-control" />
+            </div>
+            <div class="form-grup">
+                <label asp-for="Bitis"></label>
+                <input asp-for="Bitis" class="form-control" />
+            </div>
+            <div class="form-grup">
+                <label asp-for="Karar"></label>
+                <select asp-for="Karar" asp-items="kararSecenekleri" class="form-control">
+                    <option value="">Tüm kararlar</option>
+                </select>
+            </div>
+            <div class="form-grup filtre-butonu">
+                <button type="submit">Filtrele</button>
+            </div>
+        </div>
+    </form>
+</section>
+
+<section>
+    <h2>Onay Kayıtları</h2>
+    @if (!Model.Kayitlar.Any())
+    {
+        <p class="yardim-metin">Seçilen kriterlere uygun başkan kararı bulunamadı.</p>
+    }
+    else
+    {
+        <table class="tablo">
+            <thead>
+                <tr>
+                    <th>Tarih</th>
+                    <th>Talep</th>
+                    <th>Birim</th>
+                    <th>Karar</th>
+                    <th>Talep Durumu</th>
+                    <th>Proje Durumu</th>
+                    <th>Lider</th>
+                    <th>Geliştiriciler</th>
+                    <th>Test Ekibi</th>
+                    <th>İşlemler</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var kayit in Model.Kayitlar)
+            {
+                <tr>
+                    <td>@(kayit.KararTarihi?.ToLocalTime().ToString("dd.MM.yyyy") ?? "-")</td>
+                    <td><a asp-action="Detay" asp-route-id="@kayit.RequestId">@kayit.TalepBasligi</a></td>
+                    <td>@kayit.BirimAdi</td>
+                    <td>@KararEtiketi(kayit.Karar)</td>
+                    <td>@kayit.Durum</td>
+                    <td>@kayit.ProjeDurumu</td>
+                    <td>@kayit.Lider</td>
+                    <td>@kayit.Gelistiriciler</td>
+                    <td>@kayit.TestEkibi</td>
+                    <td class="islem-hucre">
+                        <a class="buton-link" asp-action="Detay" asp-route-id="@kayit.RequestId">Detay</a>
+                        @if (kayit.ProjeVar)
+                        {
+                            <a class="buton-link" asp-action="Gorevlendir" asp-route-id="@kayit.RequestId">Görevlendirmeyi Güncelle</a>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+</section>

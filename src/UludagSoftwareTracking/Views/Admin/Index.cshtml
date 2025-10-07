@@ -1,0 +1,40 @@
+@model IReadOnlyList<UserProfile>
+@{
+    ViewData["Title"] = "Sistem Yönetimi";
+}
+
+<section class="form-alani">
+    <h1>Kullanıcı Rolleri</h1>
+    <a class="buton-link" asp-action="RolAta">Yeni Rol Ataması</a>
+</section>
+
+@if (Model.Any())
+{
+    <table class="tablo">
+        <thead>
+            <tr>
+                <th>Kullanıcı</th>
+                <th>Ad Soyad</th>
+                <th>Rol</th>
+                <th>Birim</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var kullanici in Model)
+        {
+            <tr>
+                <td>@kullanici.UserName</td>
+                <td>@kullanici.FullName</td>
+                <td>@kullanici.Role</td>
+                <td>@kullanici.Department?.Name</td>
+                <td><a class="rozet" asp-action="RolAta" asp-route-userName="@kullanici.UserName">Düzenle</a></td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>Sistemde kayıtlı kullanıcı bulunamadı.</p>
+}

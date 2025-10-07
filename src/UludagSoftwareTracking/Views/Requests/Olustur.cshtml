@@ -1,0 +1,40 @@
+@model RequestCreateViewModel
+@{
+    ViewData["Title"] = "Yeni Talep";
+}
+
+<section class="form-alani">
+    <h1>Talep Oluştur</h1>
+    <form asp-action="Olustur" method="post">
+        <div asp-validation-summary="ModelOnly" class="bilgi-kutu uyari"></div>
+        <div>
+            <label asp-for="Title"></label>
+            <input asp-for="Title" />
+            <span asp-validation-for="Title" class="bilgi-kutu uyari"></span>
+        </div>
+        <div>
+            <label asp-for="Description"></label>
+            <textarea asp-for="Description" rows="5"></textarea>
+            <span asp-validation-for="Description" class="bilgi-kutu uyari"></span>
+        </div>
+        <div>
+            <label asp-for="Priority"></label>
+            <select asp-for="Priority" asp-items="Html.GetEnumSelectList<RequestPriority>()"></select>
+        </div>
+        <div>
+            <label asp-for="DesiredCompletionDate"></label>
+            <input asp-for="DesiredCompletionDate" type="date" />
+        </div>
+        <div>
+            <label asp-for="DepartmentName"></label>
+            <input asp-for="DepartmentName" readonly />
+            <input asp-for="DepartmentId" type="hidden" />
+        </div>
+        <button type="submit">Talebi Gönder</button>
+        <a class="buton-link ikincil" asp-action="Taleplerim">Vazgeç</a>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
